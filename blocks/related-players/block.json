@@ -5,7 +5,7 @@
 	"title": "Related Players",
 	"category": "livescore",
 	"icon": "groups",
-	"description": "Displays players from the Home and Away Teams connected to the current Match.",
+	"description": "Displays related players from the current Match or Team using an editable player item template.",
 	"textdomain": "wp-livescore-la",
 	"attributes": {
 		"matchId": { "type": "number", "default": 0 },

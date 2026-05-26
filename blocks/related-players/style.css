@@ -21,6 +21,10 @@
 	grid-template-columns: repeat(var(--wp-livescore-la-related-players-columns, 2), minmax(0, 1fr));
 }
 
+.wp-livescore-la-related-players__item {
+	min-width: 0;
+}
+
 .wp-livescore-la-related-players__card {
 	align-items: center;
 	box-sizing: border-box;
@@ -75,6 +79,18 @@
 
 .wp-livescore-la-related-players__meta {
 	opacity: 0.75;
+}
+
+.wp-livescore-la-related-players__template-editor {
+	border: 1px dashed color-mix(in srgb, currentColor 25%, transparent);
+	padding: 1rem;
+}
+
+.wp-livescore-la-related-players__template-label {
+	font-size: 0.75rem;
+	font-weight: 600;
+	margin-bottom: 0.75rem;
+	text-transform: uppercase;
 }
 
 @media (max-width: 640px) {

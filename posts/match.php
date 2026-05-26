@@ -425,7 +425,7 @@ function wp_livescore_la_get_league_id_by_api_id( $api_id ) {
 }
 
 /**
- * Filter the Related Matches Query Loop to the current League.
+ * Filter the Related Matches Query Loop to the current League or Team.
  *
  * @param array    $query Query Loop WP_Query arguments.
  * @param WP_Block $block Query Loop block.
@@ -440,29 +440,58 @@ function wp_livescore_la_filter_related_matches_query_loop_by_league( $query, $b
 	}
 
 	$league_id = ! empty( $block_query['wpLivescoreRelatedLeagueId'] ) ? absint( $block_query['wpLivescoreRelatedLeagueId'] ) : 0;
+	$team_id   = ! empty( $block_query['wpLivescoreRelatedTeamId'] ) ? absint( $block_query['wpLivescoreRelatedTeamId'] ) : 0;
 
 	if ( $league_id <= 0 && isset( $block->context['postId'] ) && 'league' === get_post_type( (int) $block->context['postId'] ) ) {
 		$league_id = (int) $block->context['postId'];
+	}
+
+	if ( $team_id <= 0 && isset( $block->context['postId'] ) && 'team' === get_post_type( (int) $block->context['postId'] ) ) {
+		$team_id = (int) $block->context['postId'];
 	}
 
 	if ( $league_id <= 0 && is_singular( 'league' ) ) {
 		$league_id = (int) get_queried_object_id();
 	}
 
+	if ( $team_id <= 0 && is_singular( 'team' ) ) {
+		$team_id = (int) get_queried_object_id();
+	}
+
 	if ( $league_id <= 0 && ! empty( $block_query['wpLivescoreMatchLeagueApiId'] ) ) {
 		$league_id = wp_livescore_la_get_league_id_by_api_id( $block_query['wpLivescoreMatchLeagueApiId'] );
 	}
 
-	if ( $league_id <= 0 || 'league' !== get_post_type( $league_id ) ) {
+	$has_league = $league_id > 0 && 'league' === get_post_type( $league_id );
+	$has_team   = $team_id > 0 && 'team' === get_post_type( $team_id );
+
+	if ( ! $has_league && ! $has_team ) {
 		$query['post__in'] = array( 0 );
 		return $query;
 	}
 
-	$meta_query   = isset( $query['meta_query'] ) && is_array( $query['meta_query'] ) ? $query['meta_query'] : array();
-	$meta_query[] = array(
-		'key'   => '_match_league_id',
-		'value' => $league_id,
-	);
+	$meta_query = isset( $query['meta_query'] ) && is_array( $query['meta_query'] ) ? $query['meta_query'] : array();
+
+	if ( $has_league ) {
+		$meta_query[] = array(
+			'key'   => '_match_league_id',
+			'value' => $league_id,
+		);
+	}
+
+	if ( $has_team ) {
+		$meta_query[] = array(
+			'relation' => 'OR',
+			array(
+				'key'   => '_match_home_team_id',
+				'value' => $team_id,
+			),
+			array(
+				'key'   => '_match_away_team_id',
+				'value' => $team_id,
+			),
+		);
+	}
 
 	$query['meta_query'] = $meta_query;
 
@@ -498,11 +527,15 @@ function wp_livescore_la_register_match_rest_query_params( $params ) {
 		'type'        => 'string',
 	);
 	$params['wpLivescoreRelatedMatches'] = array(
-		'description' => __( 'Filter matches by a related League.', 'wp-livescore-la' ),
+		'description' => __( 'Filter matches by a related League or Team.', 'wp-livescore-la' ),
 		'type'        => 'boolean',
 	);
 	$params['wpLivescoreRelatedLeagueId'] = array(
 		'description' => __( 'Related League post ID.', 'wp-livescore-la' ),
+		'type'        => 'integer',
+	);
+	$params['wpLivescoreRelatedTeamId'] = array(
+		'description' => __( 'Related Team post ID.', 'wp-livescore-la' ),
 		'type'        => 'integer',
 	);
 
@@ -562,7 +595,7 @@ function wp_livescore_la_sort_match_rest_query_by_date( $args, $request ) {
 add_filter( 'rest_match_query', 'wp_livescore_la_sort_match_rest_query_by_date', 10, 2 );
 
 /**
- * Filter Related Matches Query Loop block editor previews when a League ID is supplied.
+ * Filter Related Matches Query Loop block editor previews when a League or Team ID is supplied.
  *
  * @param array           $args    REST Match query args.
  * @param WP_REST_Request $request REST request.
@@ -574,20 +607,41 @@ function wp_livescore_la_filter_related_matches_rest_query_by_league( $args, $re
 	}
 
 	$league_id = absint( $request->get_param( 'wpLivescoreRelatedLeagueId' ) );
+	$team_id   = absint( $request->get_param( 'wpLivescoreRelatedTeamId' ) );
 
 	if ( $league_id <= 0 ) {
 		$league_id = wp_livescore_la_get_league_id_by_api_id( $request->get_param( 'wpLivescoreMatchLeagueApiId' ) );
 	}
 
-	if ( $league_id <= 0 || 'league' !== get_post_type( $league_id ) ) {
+	$has_league = $league_id > 0 && 'league' === get_post_type( $league_id );
+	$has_team   = $team_id > 0 && 'team' === get_post_type( $team_id );
+
+	if ( ! $has_league && ! $has_team ) {
 		return $args;
 	}
 
-	$meta_query   = isset( $args['meta_query'] ) && is_array( $args['meta_query'] ) ? $args['meta_query'] : array();
-	$meta_query[] = array(
-		'key'   => '_match_league_id',
-		'value' => $league_id,
-	);
+	$meta_query = isset( $args['meta_query'] ) && is_array( $args['meta_query'] ) ? $args['meta_query'] : array();
+
+	if ( $has_league ) {
+		$meta_query[] = array(
+			'key'   => '_match_league_id',
+			'value' => $league_id,
+		);
+	}
+
+	if ( $has_team ) {
+		$meta_query[] = array(
+			'relation' => 'OR',
+			array(
+				'key'   => '_match_home_team_id',
+				'value' => $team_id,
+			),
+			array(
+				'key'   => '_match_away_team_id',
+				'value' => $team_id,
+			),
+		);
+	}
 
 	$args['meta_query'] = $meta_query;
 

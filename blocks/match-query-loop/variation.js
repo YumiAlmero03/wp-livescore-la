@@ -77,7 +77,8 @@
 				wpLivescoreMatchCustomDate: '',
 				wpLivescoreMatchLeagueApiId: '',
 				wpLivescoreRelatedMatches: true,
-				wpLivescoreRelatedLeagueId: 0
+				wpLivescoreRelatedLeagueId: 0,
+				wpLivescoreRelatedTeamId: 0
 			}
 		},
 		allowedControls: [ 'order', 'search' ],
@@ -186,6 +187,19 @@
 								props.setAttributes( {
 									query: Object.assign( {}, query, {
 										wpLivescoreRelatedLeagueId: parseInt( value, 10 ) || 0
+									} )
+								} );
+							}
+						} )
+						,
+						isRelatedMatchesQueryLoop && el( TextControl, {
+							label: __( 'Manual Team ID', 'wp-livescore-la' ),
+							type: 'number',
+							value: query.wpLivescoreRelatedTeamId || '',
+							onChange: function ( value ) {
+								props.setAttributes( {
+									query: Object.assign( {}, query, {
+										wpLivescoreRelatedTeamId: parseInt( value, 10 ) || 0
 									} )
 								} );
 							}

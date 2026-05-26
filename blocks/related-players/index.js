@@ -1,14 +1,33 @@
-( function ( blocks, blockEditor, components, element, i18n, serverSideRender ) {
+( function ( blocks, blockEditor, components, element, i18n ) {
 	const el = element.createElement;
 	const InspectorControls = blockEditor.InspectorControls;
+	const InnerBlocks = blockEditor.InnerBlocks;
 	const useBlockProps = blockEditor.useBlockProps;
 	const PanelBody = components.PanelBody;
 	const RangeControl = components.RangeControl;
 	const SelectControl = components.SelectControl;
 	const TextControl = components.TextControl;
 	const ToggleControl = components.ToggleControl;
-	const ServerSideRender = serverSideRender;
 	const __ = i18n.__;
+
+	const template = [
+		[
+			'core/group',
+			{ className: 'wp-livescore-la-related-players__card' },
+			[
+				[ 'core/post-featured-image', { isLink: true, width: '64px', height: '64px', scale: 'cover' } ],
+				[
+					'core/group',
+					{ className: 'wp-livescore-la-related-players__content' },
+					[
+						[ 'core/post-title', { level: 3, isLink: true } ],
+						[ 'wp-livescore/player-data', { dataField: '_player_position' } ],
+						[ 'wp-livescore/player-data', { dataField: '_player_number', prefix: '#' } ]
+					]
+				]
+			]
+		]
+	];
 
 	blocks.registerBlockType( 'wp-livescore/related-players', {
 		edit: function ( props ) {
@@ -17,7 +36,7 @@
 
 			return el(
 				'div',
-				useBlockProps(),
+				useBlockProps( { className: 'wp-livescore-la-related-players wp-livescore-la-related-players--editor' } ),
 				el(
 					InspectorControls,
 					null,
@@ -30,8 +49,14 @@
 							value: attributes.matchId || '',
 							onChange: function ( value ) { setAttributes( { matchId: parseInt( value, 10 ) || 0 } ); }
 						} ),
+						el( TextControl, {
+							label: __( 'Manual Team ID', 'wp-livescore-la' ),
+							type: 'number',
+							value: attributes.teamId || '',
+							onChange: function ( value ) { setAttributes( { teamId: parseInt( value, 10 ) || 0 } ); }
+						} ),
 						el( SelectControl, {
-							label: __( 'Team', 'wp-livescore-la' ),
+							label: __( 'Team from match', 'wp-livescore-la' ),
 							value: attributes.teamSide || 'both',
 							options: [
 								{ label: __( 'Home and Away', 'wp-livescore-la' ), value: 'both' },
@@ -50,31 +75,6 @@
 							value: attributes.title || '',
 							onChange: function ( value ) { setAttributes( { title: value } ); }
 						} ) : null,
-						el( ToggleControl, {
-							label: __( 'Show images', 'wp-livescore-la' ),
-							checked: !! attributes.showImages,
-							onChange: function ( value ) { setAttributes( { showImages: value } ); }
-						} ),
-						el( ToggleControl, {
-							label: __( 'Show meta', 'wp-livescore-la' ),
-							checked: !! attributes.showMeta,
-							onChange: function ( value ) { setAttributes( { showMeta: value } ); }
-						} ),
-						attributes.showMeta ? el( ToggleControl, {
-							label: __( 'Show jersey number', 'wp-livescore-la' ),
-							checked: !! attributes.showNumber,
-							onChange: function ( value ) { setAttributes( { showNumber: value } ); }
-						} ) : null,
-						attributes.showMeta ? el( ToggleControl, {
-							label: __( 'Show position', 'wp-livescore-la' ),
-							checked: !! attributes.showPosition,
-							onChange: function ( value ) { setAttributes( { showPosition: value } ); }
-						} ) : null,
-						el( ToggleControl, {
-							label: __( 'Make players links', 'wp-livescore-la' ),
-							checked: !! attributes.makeLinks,
-							onChange: function ( value ) { setAttributes( { makeLinks: value } ); }
-						} ),
 						el( RangeControl, {
 							label: __( 'Columns', 'wp-livescore-la' ),
 							value: attributes.columns || 2,
@@ -98,11 +98,19 @@
 						} )
 					)
 				),
-				el( ServerSideRender, { block: 'wp-livescore/related-players', attributes: attributes } )
+				el(
+					'div',
+					{ className: 'wp-livescore-la-related-players__template-editor' },
+					el( 'div', { className: 'wp-livescore-la-related-players__template-label' }, __( 'Player item template', 'wp-livescore-la' ) ),
+					el( InnerBlocks, {
+						template: template,
+						templateLock: false
+					} )
+				)
 			);
 		},
 		save: function () {
-			return null;
+			return el( InnerBlocks.Content );
 		}
 	} );
-} )( window.wp.blocks, window.wp.blockEditor, window.wp.components, window.wp.element, window.wp.i18n, window.wp.serverSideRender );
+} )( window.wp.blocks, window.wp.blockEditor, window.wp.components, window.wp.element, window.wp.i18n );
