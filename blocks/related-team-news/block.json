@@ -1,0 +1,35 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "wp-livescore/related-team-news",
+	"title": "Related Team News",
+	"category": "livescore",
+	"icon": "megaphone",
+	"description": "Displays blog posts tagged with the current Team's linked WordPress tag.",
+	"textdomain": "wp-livescore-la",
+	"attributes": {
+		"title": { "type": "string", "default": "Related Team News" },
+		"teamId": { "type": "number", "default": 0 },
+		"postsPerPage": { "type": "number", "default": 6 },
+		"columns": { "type": "number", "default": 3 },
+		"showFeaturedImage": { "type": "boolean", "default": true },
+		"showExcerpt": { "type": "boolean", "default": true },
+		"showDate": { "type": "boolean", "default": true },
+		"showAuthor": { "type": "boolean", "default": false },
+		"showReadMore": { "type": "boolean", "default": true },
+		"readMoreText": { "type": "string", "default": "Read More" },
+		"emptyMessage": { "type": "string", "default": "No related team news found yet." }
+	},
+	"usesContext": [ "postId", "postType" ],
+	"supports": {
+		"align": [ "wide", "full" ],
+		"anchor": true,
+		"color": { "background": true, "text": true, "link": true },
+		"spacing": { "margin": true, "padding": true, "blockGap": true },
+		"typography": { "fontSize": true, "lineHeight": true }
+	},
+	"editorScript": "file:./index.js",
+	"style": "file:./style.css",
+	"editorStyle": "file:./style.css",
+	"render": "file:./render.php"
+}

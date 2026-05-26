@@ -1,0 +1,10 @@
+.wp-livescore-la-fixture-iframe {
+	box-sizing: border-box;
+}
+
+.wp-livescore-la-fixture-iframe__embed {
+	border: 1px solid #e5e7ef;
+	border-radius: 8px;
+	display: block;
+	max-width: 100%;
+}

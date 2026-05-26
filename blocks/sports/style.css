@@ -1,0 +1,23 @@
+.wp-livescore-la-sports {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5em;
+}
+
+.wp-livescore-la-sports__item {
+	align-items: center;
+	display: inline-flex;
+	gap: 0.35em;
+}
+
+.wp-livescore-la-sports__icon {
+	flex: 0 0 auto;
+	height: 1em;
+	line-height: 1;
+	width: 1em;
+}
+
+.wp-livescore-la-sports__empty {
+	margin: 0;
+}

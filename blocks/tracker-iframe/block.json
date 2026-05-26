@@ -1,0 +1,22 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "wp-livescore/tracker-iframe",
+	"title": "Tracker Score",
+	"category": "livescore",
+	"icon": "chart-line",
+	"description": "Displays the current Match score as home score - away score.",
+	"textdomain": "wp-livescore-la",
+	"usesContext": [ "postId", "postType" ],
+	"supports": {
+		"align": [ "wide", "full" ],
+		"anchor": true,
+		"spacing": { "margin": true, "padding": true },
+		"color": { "background": true }
+	},
+	"editorScript": "file:./index.js",
+	"viewScript": "file:./view.js",
+	"style": "file:./style.css",
+	"editorStyle": "file:./style.css",
+	"render": "file:./render.php"
+}

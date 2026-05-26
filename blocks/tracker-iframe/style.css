@@ -1,0 +1,37 @@
+.wp-livescore-la-tracker-iframe {
+	align-items: center;
+	box-sizing: border-box;
+	display: inline-flex;
+	justify-content: center;
+}
+
+.wp-livescore-la-tracker-iframe__score {
+	align-items: center;
+	display: inline-flex;
+	font-size: 1.25em;
+	font-weight: 700;
+	gap: 0.4em;
+	letter-spacing: 0;
+	line-height: 1;
+}
+
+.wp-livescore-la-tracker-iframe__separator {
+	opacity: 0.65;
+}
+
+.wp-livescore-la-tracker-iframe__countdown {
+	align-items: center;
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: 0.4em;
+}
+
+.wp-livescore-la-tracker-iframe__countdown-label {
+	opacity: 0.75;
+}
+
+.wp-livescore-la-tracker-iframe__countdown-value {
+	font-size: 1.25em;
+	letter-spacing: 0;
+	line-height: 1;
+}

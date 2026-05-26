@@ -1,0 +1,29 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "wp-livescore/league-logo",
+	"title": "League Logo",
+	"category": "livescore",
+	"icon": "shield",
+	"description": "Displays the current League logo or badge.",
+	"textdomain": "wp-livescore-la",
+	"attributes": {
+		"leagueId": { "type": "number", "default": 0 },
+		"imageSize": { "type": "string", "default": "medium" },
+		"linkToLeague": { "type": "boolean", "default": false },
+		"maxWidth": { "type": "number", "default": 160 },
+		"maxHeight": { "type": "number", "default": 160 },
+		"emptyMessage": { "type": "string", "default": "" }
+	},
+	"usesContext": [ "postId", "postType" ],
+	"supports": {
+		"align": [ "left", "center", "right", "wide", "full" ],
+		"anchor": true,
+		"color": { "background": true },
+		"spacing": { "margin": true, "padding": true }
+	},
+	"editorScript": "file:./index.js",
+	"style": "file:./style.css",
+	"editorStyle": "file:./style.css",
+	"render": "file:./render.php"
+}

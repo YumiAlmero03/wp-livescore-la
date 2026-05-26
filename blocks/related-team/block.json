@@ -1,0 +1,32 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "wp-livescore/related-team",
+	"title": "Related Team",
+	"category": "livescore",
+	"icon": "shield",
+	"description": "Displays the Home or Away Team connected to the current Match.",
+	"textdomain": "wp-livescore-la",
+	"attributes": {
+			"matchId": { "type": "number", "default": 0 },
+			"teamSide": { "type": "string", "default": "home" },
+			"showImage": { "type": "boolean", "default": true },
+			"imageSize": { "type": "number", "default": 5 },
+			"imagePosition": { "type": "string", "default": "top" },
+			"useShortName": { "type": "boolean", "default": false },
+			"makeLink": { "type": "boolean", "default": true },
+		"emptyMessage": { "type": "string", "default": "" }
+	},
+	"usesContext": [ "postId", "postType" ],
+	"supports": {
+		"align": [ "wide", "full" ],
+		"anchor": true,
+		"color": { "background": true, "text": true, "link": true },
+		"spacing": { "margin": true, "padding": true, "blockGap": true },
+		"typography": { "fontSize": true, "lineHeight": true }
+	},
+	"editorScript": "file:./index.js",
+	"style": "file:./style.css",
+	"editorStyle": "file:./style.css",
+	"render": "file:./render.php"
+}

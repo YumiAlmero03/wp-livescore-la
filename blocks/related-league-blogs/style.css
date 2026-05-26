@@ -1,0 +1,85 @@
+.wp-livescore-la-related-league-blogs {
+	box-sizing: border-box;
+}
+
+.wp-livescore-la-related-league-blogs__title {
+	margin: 0 0 1rem;
+}
+
+.wp-livescore-la-related-league-blogs__grid {
+	display: grid;
+	gap: var(--wp--style--block-gap, 1.25rem);
+	grid-template-columns: repeat(var(--wp-livescore-la-related-columns, 3), minmax(0, 1fr));
+}
+
+.wp-livescore-la-related-league-blogs__card {
+
+	border-radius: 8px;
+	overflow: hidden;
+}
+
+.wp-livescore-la-related-league-blogs__image-link {
+	display: block;
+}
+
+.wp-livescore-la-related-league-blogs__image {
+	aspect-ratio: 16 / 9;
+	display: block;
+	height: auto;
+	object-fit: cover;
+	width: 100%;
+}
+
+.wp-livescore-la-related-league-blogs__placeholder {
+	align-items: center;
+	background: color-mix(in srgb, currentColor 8%, transparent);
+	border-bottom: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+	display: flex;
+	justify-content: center;
+	padding: 1rem;
+	text-align: center;
+}
+
+.wp-livescore-la-related-league-blogs__content {
+	padding: 1rem;
+}
+
+.wp-livescore-la-related-league-blogs__post-title {
+	font-size: 1.1em;
+	line-height: 1.35;
+	margin: 0;
+}
+
+.wp-livescore-la-related-league-blogs__meta {
+	display: flex;
+	flex-wrap: wrap;
+	font-size: 0.875em;
+	gap: 0.5rem;
+	margin-top: 0.5rem;
+	opacity: 0.75;
+}
+
+.wp-livescore-la-related-league-blogs__excerpt {
+	margin-top: 0.75rem;
+}
+
+.wp-livescore-la-related-league-blogs__read-more {
+	display: inline-block;
+	margin-top: 0.9rem;
+}
+
+.wp-livescore-la-related-league-blogs__empty {
+	margin: 0;
+}
+
+@media (max-width: 782px) {
+	.wp-livescore-la-related-league-blogs__grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 600px) {
+	.wp-livescore-la-related-league-blogs__grid {
+		grid-template-columns: 1fr;
+	}
+}

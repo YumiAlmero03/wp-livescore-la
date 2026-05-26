@@ -1,0 +1,32 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "wp-livescore/match-filters",
+	"title": "Match Filters",
+	"category": "livescore",
+	"icon": "filter",
+	"description": "Displays Sport, Country, League, and date filters for Match archives.",
+	"textdomain": "wp-livescore-la",
+	"attributes": {
+		"title": { "type": "string", "default": "Filter Matches" },
+		"showTitle": { "type": "boolean", "default": true },
+		"showSport": { "type": "boolean", "default": true },
+		"showCountry": { "type": "boolean", "default": true },
+		"showLeague": { "type": "boolean", "default": true },
+		"showDate": { "type": "boolean", "default": true },
+		"buttonText": { "type": "string", "default": "Filter" },
+		"resetText": { "type": "string", "default": "Reset" }
+	},
+	"supports": {
+		"align": [ "wide", "full" ],
+		"anchor": true,
+		"color": { "background": true, "text": true },
+		"spacing": { "margin": true, "padding": true, "blockGap": true },
+		"typography": { "fontSize": true, "lineHeight": true }
+	},
+	"editorScript": "file:./index.js",
+	"viewScript": "file:./view.js",
+	"style": "file:./style.css",
+	"editorStyle": "file:./style.css",
+	"render": "file:./render.php"
+}

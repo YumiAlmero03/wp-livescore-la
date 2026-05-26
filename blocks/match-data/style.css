@@ -1,0 +1,66 @@
+.wp-livescore-la-match-data {
+	box-sizing: border-box;
+}
+
+.wp-livescore-la-match-data__value {
+	align-items: center;
+	display: inline-flex;
+	gap: 0.35em;
+	overflow-wrap: anywhere;
+}
+
+.wp-livescore-la-match-data__content {
+	align-items: baseline;
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: 0.25em;
+}
+
+.wp-livescore-la-match-data.has-text-transform-uppercase {
+	text-transform: uppercase;
+}
+
+.wp-livescore-la-match-data.has-text-transform-lowercase {
+	text-transform: lowercase;
+}
+
+.wp-livescore-la-match-data.has-text-transform-capitalize {
+	text-transform: capitalize;
+}
+
+.wp-livescore-la-match-data.has-text-transform-none {
+	text-transform: none;
+}
+
+.wp-livescore-la-match-data.has-text-align-left {
+	text-align: left;
+}
+
+.wp-livescore-la-match-data.has-text-align-center {
+	text-align: center;
+}
+
+.wp-livescore-la-match-data.has-text-align-right {
+	text-align: right;
+}
+
+.wp-livescore-la-match-data.has-text-align-justify {
+	text-align: justify;
+}
+
+.wp-livescore-la-match-data.has-text-align-justify .wp-livescore-la-match-data__value {
+	display: flex;
+	justify-content: space-between;
+	width: 100%;
+}
+
+.wp-livescore-la-match-data__icon {
+	flex: 0 0 auto;
+	height: 1em;
+	line-height: 1;
+	width: 1em;
+}
+
+.wp-livescore-la-match-data__empty {
+	margin: 0;
+}

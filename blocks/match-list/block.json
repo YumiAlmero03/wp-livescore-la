@@ -1,0 +1,41 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "wp-livescore/match-list",
+	"title": "Match List",
+	"category": "livescore",
+	"icon": "calendar-alt",
+	"description": "Displays livescore matches with optional filters.",
+	"textdomain": "wp-livescore-la",
+	"attributes": {
+		"title": { "type": "string", "default": "Matches" },
+		"sportSlug": { "type": "string", "default": "" },
+		"countrySlug": { "type": "string", "default": "" },
+		"leagueId": { "type": "number", "default": 0 },
+		"seasonId": { "type": "number", "default": 0 },
+		"teamId": { "type": "number", "default": 0 },
+		"status": { "type": "string", "default": "" },
+		"dateFilter": { "type": "string", "default": "today" },
+		"customDate": { "type": "string", "default": "" },
+		"postsPerPage": { "type": "number", "default": 10 },
+		"layoutType": { "type": "string", "default": "grid" },
+		"displayStyle": { "type": "string", "default": "list" },
+		"showLeague": { "type": "boolean", "default": true },
+		"showSeason": { "type": "boolean", "default": false },
+		"showVenue": { "type": "boolean", "default": true },
+		"showStatus": { "type": "boolean", "default": true },
+		"showSportScore": { "type": "boolean", "default": true },
+		"emptyMessage": { "type": "string", "default": "No matches found." }
+	},
+	"supports": {
+		"align": [ "wide", "full" ],
+		"anchor": true,
+		"color": { "background": true, "text": true, "link": true },
+		"spacing": { "margin": true, "padding": true, "blockGap": true },
+		"typography": { "fontSize": true, "lineHeight": true }
+	},
+	"editorScript": "file:./index.js",
+	"style": "file:./style.css",
+	"editorStyle": "file:./style.css",
+	"render": "file:./render.php"
+}

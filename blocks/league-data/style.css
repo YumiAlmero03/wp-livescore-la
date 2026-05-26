@@ -1,0 +1,50 @@
+.wp-livescore-la-league-data {
+	box-sizing: border-box;
+}
+
+.wp-livescore-la-league-data__value {
+	align-items: center;
+	display: inline-flex;
+	gap: 0.35em;
+	overflow-wrap: anywhere;
+}
+
+.wp-livescore-la-league-data__content {
+	align-items: baseline;
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: 0.25em;
+}
+
+.wp-livescore-la-league-data.has-text-align-left {
+	text-align: left;
+}
+
+.wp-livescore-la-league-data.has-text-align-center {
+	text-align: center;
+}
+
+.wp-livescore-la-league-data.has-text-align-right {
+	text-align: right;
+}
+
+.wp-livescore-la-league-data.has-text-align-justify {
+	text-align: justify;
+}
+
+.wp-livescore-la-league-data.has-text-align-justify .wp-livescore-la-league-data__value {
+	display: flex;
+	justify-content: space-between;
+	width: 100%;
+}
+
+.wp-livescore-la-league-data__icon {
+	flex: 0 0 auto;
+	height: 1em;
+	line-height: 1;
+	width: 1em;
+}
+
+.wp-livescore-la-league-data__empty {
+	margin: 0;
+}

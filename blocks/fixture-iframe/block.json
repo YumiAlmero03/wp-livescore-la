@@ -1,0 +1,25 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "wp-livescore/fixture-iframe",
+	"title": "Fixture Iframe",
+	"category": "livescore",
+	"icon": "calendar-alt",
+	"description": "Displays the SportScore fixtures iframe for the current Match or League.",
+	"textdomain": "wp-livescore-la",
+	"attributes": {
+		"width": { "type": "number", "default": 320 },
+		"height": { "type": "number", "default": 420 }
+	},
+	"usesContext": [ "postId", "postType" ],
+	"supports": {
+		"align": [ "wide", "full" ],
+		"anchor": true,
+		"spacing": { "margin": true, "padding": true },
+		"color": { "background": true }
+	},
+	"editorScript": "file:./index.js",
+	"style": "file:./style.css",
+	"editorStyle": "file:./style.css",
+	"render": "file:./render.php"
+}

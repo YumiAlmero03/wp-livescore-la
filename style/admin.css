@@ -1,0 +1,99 @@
+.wp-livescore-la-admin .nav-tab-wrapper {
+	margin-bottom: 18px;
+}
+
+.wp-livescore-la-admin .button + .button {
+	margin-left: 8px;
+}
+
+.wp-livescore-la-url-preview code {
+	display: inline-block;
+	max-width: 100%;
+	padding: 6px 8px;
+	white-space: normal;
+}
+
+.wp-livescore-la-import-buttons {
+	display: grid;
+	gap: 10px;
+	margin: 16px 0 24px;
+}
+
+.wp-livescore-la-import-buttons form {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+.wp-livescore-la-import-buttons code {
+	white-space: normal;
+}
+
+.wp-livescore-la-meta-table input.regular-text {
+	max-width: 100%;
+}
+
+.wp-livescore-la-header-image__preview img {
+	border: 1px solid #c3c4c7;
+	display: block;
+	height: auto;
+	max-width: 640px;
+	width: 100%;
+}
+
+.wp-livescore-la-header-image__details {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin: 8px 0;
+}
+
+.wp-livescore-la-sport-icon-preview,
+.wp-livescore-la-country-flag-preview {
+	border: 1px solid #c3c4c7;
+	display: block;
+	height: auto;
+	margin-top: 8px;
+	max-width: 96px;
+}
+
+.wp-livescore-la-json-viewer {
+	tab-size: 2;
+	white-space: pre;
+}
+
+.wp-livescore-la-related-posts {
+	margin-top: 32px;
+}
+
+.wp-livescore-la-league-archive {
+	margin: 0 auto;
+	max-width: 1200px;
+	padding: 32px 16px;
+}
+
+.wp-livescore-la-league-archive__grid {
+	display: grid;
+	gap: 20px;
+	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+	margin-top: 24px;
+}
+
+.wp-livescore-la-league-archive__card {
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	overflow: hidden;
+}
+
+.wp-livescore-la-league-archive__image {
+	display: block;
+	height: auto;
+	width: 100%;
+}
+
+.wp-livescore-la-league-archive__content,
+.wp-livescore-la-league-archive__empty {
+	padding: 16px;
+}

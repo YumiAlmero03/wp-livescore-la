@@ -1,0 +1,37 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "wp-livescore/related-players",
+	"title": "Related Players",
+	"category": "livescore",
+	"icon": "groups",
+	"description": "Displays players from the Home and Away Teams connected to the current Match.",
+	"textdomain": "wp-livescore-la",
+	"attributes": {
+		"matchId": { "type": "number", "default": 0 },
+		"teamId": { "type": "number", "default": 0 },
+		"teamSide": { "type": "string", "default": "both" },
+		"showTitle": { "type": "boolean", "default": true },
+		"title": { "type": "string", "default": "Players" },
+		"showImages": { "type": "boolean", "default": true },
+		"showMeta": { "type": "boolean", "default": true },
+		"showNumber": { "type": "boolean", "default": true },
+		"showPosition": { "type": "boolean", "default": true },
+		"makeLinks": { "type": "boolean", "default": true },
+		"columns": { "type": "number", "default": 2 },
+		"postsPerPage": { "type": "number", "default": 50 },
+		"emptyMessage": { "type": "string", "default": "" }
+	},
+	"usesContext": [ "postId", "postType" ],
+	"supports": {
+		"align": [ "wide", "full" ],
+		"anchor": true,
+		"color": { "background": true, "text": true, "link": true },
+		"spacing": { "margin": true, "padding": true, "blockGap": true },
+		"typography": { "fontSize": true, "lineHeight": true }
+	},
+	"editorScript": "file:./index.js",
+	"style": "file:./style.css",
+	"editorStyle": "file:./style.css",
+	"render": "file:./render.php"
+}

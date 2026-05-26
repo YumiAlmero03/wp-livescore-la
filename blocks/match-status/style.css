@@ -1,0 +1,28 @@
+.wp-livescore-la-match-status {
+	align-items: center;
+	display: inline-flex;
+	gap: 0.35em;
+}
+
+.wp-livescore-la-match-status__content {
+	align-items: baseline;
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: 0.25em;
+}
+
+.wp-livescore-la-match-status__label {
+	font-weight: 600;
+}
+
+.wp-livescore-la-match-status--live .wp-livescore-la-match-status__label {
+	color: #b42318;
+}
+
+.wp-livescore-la-match-status--ended .wp-livescore-la-match-status__label {
+	color: #475467;
+}
+
+.wp-livescore-la-match-status__empty {
+	margin: 0;
+}

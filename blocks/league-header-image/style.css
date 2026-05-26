@@ -1,0 +1,42 @@
+.wp-livescore-la-league-header-image {
+	box-sizing: border-box;
+	margin: 0;
+	max-height: var(--wp-livescore-la-league-header-max-height, none);
+	max-width: var(--wp-livescore-la-league-header-max-width, none);
+	overflow: hidden;
+	position: relative;
+	width: 100%;
+}
+
+.wp-livescore-la-league-header-image__link {
+	display: block;
+	max-height: inherit;
+	position: relative;
+}
+
+.wp-livescore-la-league-header-image__image {
+	display: block;
+	height: auto;
+	max-width: 100%;
+	object-fit: cover;
+	object-position: var(--wp-livescore-la-league-header-position, center center);
+	width: 100%;
+}
+
+.wp-livescore-la-league-header-image__placeholder {
+	align-items: center;
+	aspect-ratio: 16 / 9;
+	background: color-mix(in srgb, currentColor 8%, transparent);
+	border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+	display: flex;
+	justify-content: center;
+	min-height: 12rem;
+	text-align: center;
+	width: 100%;
+}
+
+.wp-livescore-la-league-header-image__overlay {
+	inset: 0;
+	pointer-events: none;
+	position: absolute;
+}

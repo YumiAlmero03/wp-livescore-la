@@ -1,0 +1,33 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "wp-livescore/team-data",
+	"title": "Team Data",
+	"category": "livescore",
+	"icon": "shield",
+	"description": "Displays one Team custom field from the current Team.",
+	"textdomain": "wp-livescore-la",
+	"attributes": {
+		"teamId": { "type": "number", "default": 0 },
+		"dataField": { "type": "string", "default": "_team_short_name" },
+		"icon": { "type": "string", "default": "" },
+		"prefix": { "type": "string", "default": "" },
+		"suffix": { "type": "string", "default": "" },
+		"textTransform": { "type": "string", "default": "" },
+		"textAlign": { "type": "string", "default": "" },
+		"makeLink": { "type": "boolean", "default": false },
+		"emptyMessage": { "type": "string", "default": "" }
+	},
+	"usesContext": [ "postId", "postType" ],
+	"supports": {
+		"align": [ "wide", "full" ],
+		"anchor": true,
+		"color": { "background": true, "text": true, "link": true },
+		"spacing": { "margin": true, "padding": true, "blockGap": true },
+		"typography": { "fontSize": true, "lineHeight": true, "textTransform": true }
+	},
+	"editorScript": "file:./index.js",
+	"style": "file:./style.css",
+	"editorStyle": "file:./style.css",
+	"render": "file:./render.php"
+}
