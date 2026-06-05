@@ -22,6 +22,75 @@ define( 'WP_LIVESCORE_LA_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WP_LIVESCORE_LA_URL', plugin_dir_url( __FILE__ ) );
 define( 'WP_LIVESCORE_LA_OPTION', 'wp_livescore_la_settings' );
 define( 'WP_LIVESCORE_LA_META_PREFIX', '_wp_livescore_la_' );
+define( 'WP_LIVESCORE_LA_LOG_FILE', WP_CONTENT_DIR . '/livescore.log' );
+
+/**
+ * Write a plugin log entry.
+ *
+ * @param string $source  Log source.
+ * @param string $message Log message.
+ * @param array  $context Extra context.
+ * @param string $level   Log level.
+ */
+function wp_livescore_la_log( $source, $message, $context = array(), $level = 'error' ) {
+	$source  = sanitize_key( $source );
+	$level   = sanitize_key( $level );
+	$message = sanitize_text_field( (string) $message );
+	$context = is_array( $context ) ? $context : array();
+
+	if ( '' === $source ) {
+		$source = 'general';
+	}
+
+	if ( '' === $level ) {
+		$level = 'error';
+	}
+
+	$entry = array(
+		'time'    => current_time( 'mysql' ),
+		'level'   => $level,
+		'source'  => $source,
+		'message' => $message,
+		'context' => $context,
+	);
+
+	$line = wp_json_encode( $entry, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+	if ( false === $line ) {
+		$line = '[' . current_time( 'mysql' ) . '] ' . strtoupper( $level ) . ' ' . $source . ' ' . $message;
+	}
+
+	$log_dir = dirname( WP_LIVESCORE_LA_LOG_FILE );
+	if ( ! is_dir( $log_dir ) || ! wp_is_writable( $log_dir ) ) {
+		return;
+	}
+
+	file_put_contents( WP_LIVESCORE_LA_LOG_FILE, $line . PHP_EOL, FILE_APPEND | LOCK_EX ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+}
+
+/**
+ * Write a WP_Error to the plugin log.
+ *
+ * @param string   $source  Log source.
+ * @param WP_Error $error   Error object.
+ * @param array    $context Extra context.
+ */
+function wp_livescore_la_log_wp_error( $source, $error, $context = array() ) {
+	if ( ! is_wp_error( $error ) ) {
+		return;
+	}
+
+	wp_livescore_la_log(
+		$source,
+		$error->get_error_message(),
+		array_merge(
+			$context,
+			array(
+				'code' => $error->get_error_code(),
+				'data' => $error->get_error_data(),
+			)
+		)
+	);
+}
 
 /**
  * Load translations.

@@ -317,6 +317,18 @@ function wp_livescore_la_store_last_updater_response( $url, $status_code, $body 
 		),
 		false
 	);
+
+	if ( (int) $status_code >= 400 && function_exists( 'wp_livescore_la_log' ) ) {
+		wp_livescore_la_log(
+			'api_response',
+			'API request returned an error status.',
+			array(
+				'url'         => esc_url_raw( $url ),
+				'status_code' => (int) $status_code,
+				'body_sample'  => substr( wp_strip_all_tags( (string) $body ), 0, 500 ),
+			)
+		);
+	}
 }
 
 /**

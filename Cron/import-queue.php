@@ -58,11 +58,14 @@ add_action( 'wp_livescore_la_process_import_queue', 'wp_livescore_la_process_imp
  */
 function wp_livescore_la_queue_kadario_prediction_import( $selected_key = 'all' ) {
 	if ( ! function_exists( 'wp_livescore_la_fetch_kadario_records' ) ) {
-		return new WP_Error( 'wp_livescore_la_kadario_unavailable', __( 'Kadario importer is not available.', 'wp-livescore-la' ) );
+		$error = new WP_Error( 'wp_livescore_la_kadario_unavailable', __( 'Kadario importer is not available.', 'wp-livescore-la' ) );
+		wp_livescore_la_log_wp_error( 'kadario_cron', $error, array( 'selected_key' => $selected_key ) );
+		return $error;
 	}
 
 	$fetched = wp_livescore_la_fetch_kadario_records( $selected_key );
 	if ( is_wp_error( $fetched ) ) {
+		wp_livescore_la_log_wp_error( 'kadario_cron', $fetched, array( 'selected_key' => $selected_key ) );
 		return $fetched;
 	}
 
@@ -150,6 +153,7 @@ function wp_livescore_la_process_kadario_prediction_queue() {
 		$result = wp_livescore_la_import_kadario_records( array( $record ) );
 		if ( is_wp_error( $result ) ) {
 			$status['last_error'] = $result->get_error_message();
+			wp_livescore_la_log_wp_error( 'kadario_prediction_queue', $result, array( 'pending' => count( $queue ) ) );
 		} else {
 			$status['created'] = (int) ( isset( $status['created'] ) ? $status['created'] : 0 ) + (int) $result['created'];
 			$status['updated'] = (int) ( isset( $status['updated'] ) ? $status['updated'] : 0 ) + (int) $result['updated'];
@@ -157,6 +161,15 @@ function wp_livescore_la_process_kadario_prediction_queue() {
 		}
 	} else {
 		$status['skipped'] = (int) ( isset( $status['skipped'] ) ? $status['skipped'] : 0 ) + 1;
+		wp_livescore_la_log(
+			'kadario_prediction_queue',
+			'Queued Kadario prediction record could not be imported.',
+			array(
+				'has_importer' => function_exists( 'wp_livescore_la_import_kadario_records' ),
+				'is_record'    => is_array( $record ),
+				'pending'      => count( $queue ),
+			)
+		);
 	}
 
 	delete_transient( 'wp_livescore_la_kadario_prediction_queue_lock' );
@@ -252,6 +265,17 @@ function wp_livescore_la_run_kadario_daily_match_update() {
 	set_transient( 'wp_livescore_la_kadario_daily_match_update_lock', 1, 30 * MINUTE_IN_SECONDS );
 	$result = wp_livescore_la_queue_kadario_prediction_import( $import_key );
 	delete_transient( 'wp_livescore_la_kadario_daily_match_update_lock' );
+
+	if ( is_wp_error( $result ) ) {
+		wp_livescore_la_log_wp_error(
+			'kadario_daily_match_update',
+			$result,
+			array(
+				'endpoint'   => 'https://livescore-ai-635955947416.asia-east1.run.app/api/ai-generated/',
+				'import_key' => $import_key,
+			)
+		);
+	}
 
 	update_option(
 		'wp_livescore_la_last_kadario_daily_match_update',

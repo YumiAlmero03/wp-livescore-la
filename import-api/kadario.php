@@ -185,12 +185,16 @@ function wp_livescore_la_fetch_kadario_records( $selected_key = 'all' ) {
 	$links = wp_livescore_la_get_kadario_import_links();
 
 	if ( empty( $links ) ) {
-		return new WP_Error( 'wp_livescore_la_no_links', __( 'No Kadario import links are configured.', 'wp-livescore-la' ) );
+		$error = new WP_Error( 'wp_livescore_la_no_links', __( 'No Kadario import links are configured.', 'wp-livescore-la' ) );
+		wp_livescore_la_log_wp_error( 'kadario_api', $error, array( 'selected_key' => $selected_key ) );
+		return $error;
 	}
 
 	if ( 'all' !== $selected_key ) {
 		if ( ! isset( $links[ $selected_key ] ) ) {
-			return new WP_Error( 'wp_livescore_la_missing_link', __( 'The selected Kadario import link was not found.', 'wp-livescore-la' ) );
+			$error = new WP_Error( 'wp_livescore_la_missing_link', __( 'The selected Kadario import link was not found.', 'wp-livescore-la' ) );
+			wp_livescore_la_log_wp_error( 'kadario_api', $error, array( 'selected_key' => $selected_key ) );
+			return $error;
 		}
 		$links = array( $selected_key => $links[ $selected_key ] );
 	}
@@ -203,7 +207,9 @@ function wp_livescore_la_fetch_kadario_records( $selected_key = 'all' ) {
 
 	foreach ( $links as $link ) {
 		if ( empty( $link['url'] ) ) {
-			return new WP_Error( 'wp_livescore_la_invalid_url', __( 'Please set Kadario import targets in import-api/kadario.php.', 'wp-livescore-la' ) );
+			$error = new WP_Error( 'wp_livescore_la_invalid_url', __( 'Please set Kadario import targets in import-api/kadario.php.', 'wp-livescore-la' ) );
+			wp_livescore_la_log_wp_error( 'kadario_api', $error, array( 'link' => $link ) );
+			return $error;
 		}
 
 		$response = wp_remote_get(
@@ -215,6 +221,13 @@ function wp_livescore_la_fetch_kadario_records( $selected_key = 'all' ) {
 		);
 
 		if ( is_wp_error( $response ) ) {
+			wp_livescore_la_log_wp_error(
+				'kadario_api',
+				$response,
+				array(
+					'url' => $link['url'],
+				)
+			);
 			return $response;
 		}
 
@@ -223,7 +236,7 @@ function wp_livescore_la_fetch_kadario_records( $selected_key = 'all' ) {
 		wp_livescore_la_store_last_updater_response( $link['url'], $status_code, $body );
 
 		if ( $status_code < 200 || $status_code >= 300 ) {
-			return new WP_Error(
+			$error = new WP_Error(
 				'wp_livescore_la_http_error',
 				sprintf(
 					/* translators: 1: HTTP status code, 2: URL. */
@@ -232,11 +245,31 @@ function wp_livescore_la_fetch_kadario_records( $selected_key = 'all' ) {
 					$link['url']
 				)
 			);
+			wp_livescore_la_log_wp_error(
+				'kadario_api',
+				$error,
+				array(
+					'url'         => $link['url'],
+					'status_code' => $status_code,
+					'body_sample'  => substr( wp_strip_all_tags( $body ), 0, 500 ),
+				)
+			);
+			return $error;
 		}
 
 		$payload = json_decode( $body, true );
 		if ( JSON_ERROR_NONE !== json_last_error() ) {
-			return new WP_Error( 'wp_livescore_la_invalid_json', __( 'Kadario returned invalid JSON.', 'wp-livescore-la' ) );
+			$error = new WP_Error( 'wp_livescore_la_invalid_json', __( 'Kadario returned invalid JSON.', 'wp-livescore-la' ) );
+			wp_livescore_la_log_wp_error(
+				'kadario_api',
+				$error,
+				array(
+					'url'        => $link['url'],
+					'json_error' => json_last_error_msg(),
+					'body_sample'=> substr( wp_strip_all_tags( $body ), 0, 500 ),
+				)
+			);
+			return $error;
 		}
 
 		$records = wp_livescore_la_extract_kadario_records( $payload );
