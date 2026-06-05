@@ -86,7 +86,7 @@ function wp_livescore_la_queue_kadario_prediction_import( $selected_key = 'all' 
 			'updated'   => 0,
 			'skipped'   => 0,
 			'last_run'  => '',
-				'last_error' => '',
+			'last_error' => '',
 		),
 		false
 	);
@@ -172,17 +172,49 @@ function wp_livescore_la_process_kadario_prediction_queue() {
 add_action( 'wp_livescore_la_process_kadario_prediction_queue', 'wp_livescore_la_process_kadario_prediction_queue' );
 
 /**
- * Schedule the daily Kadario import.
+ * Get the configured Kadario AI-generated endpoint key.
+ *
+ * @return string
  */
-function wp_livescore_la_schedule_kadario_daily_import() {
-	if ( ! wp_next_scheduled( 'wp_livescore_la_run_kadario_daily_import' ) ) {
-		wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'wp_livescore_la_run_kadario_daily_import' );
+function wp_livescore_la_get_kadario_ai_generated_import_key() {
+	if ( ! function_exists( 'wp_livescore_la_get_kadario_import_links' ) ) {
+		return 'all';
 	}
+
+	$links = wp_livescore_la_get_kadario_import_links();
+	foreach ( $links as $key => $link ) {
+		$target = isset( $link['target'] ) ? trim( (string) $link['target'] ) : '';
+		$type   = isset( $link['type'] ) ? sanitize_key( $link['type'] ) : '';
+
+		if ( 'ai-generated' === $type || false !== strpos( $target, 'api/ai-generated' ) ) {
+			return (string) $key;
+		}
+	}
+
+	return 'all';
 }
-add_action( 'init', 'wp_livescore_la_schedule_kadario_daily_import' );
 
 /**
- * Unschedule the daily Kadario import.
+ * Schedule the daily Kadario AI-generated match update.
+ */
+function wp_livescore_la_schedule_kadario_daily_match_update() {
+	wp_livescore_la_unschedule_kadario_daily_import();
+
+	if ( ! wp_next_scheduled( 'wp_livescore_la_run_kadario_daily_match_update' ) ) {
+		wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'wp_livescore_la_run_kadario_daily_match_update' );
+	}
+}
+add_action( 'init', 'wp_livescore_la_schedule_kadario_daily_match_update' );
+
+/**
+ * Backward-compatible wrapper for older activation code.
+ */
+function wp_livescore_la_schedule_kadario_daily_import() {
+	wp_livescore_la_schedule_kadario_daily_match_update();
+}
+
+/**
+ * Unschedule the legacy daily Kadario import.
  */
 function wp_livescore_la_unschedule_kadario_daily_import() {
 	$timestamp = wp_next_scheduled( 'wp_livescore_la_run_kadario_daily_import' );
@@ -193,10 +225,21 @@ function wp_livescore_la_unschedule_kadario_daily_import() {
 }
 
 /**
- * Run Kadario's daily match and team updater.
+ * Unschedule the daily Kadario AI-generated match update.
  */
-function wp_livescore_la_run_kadario_daily_import() {
-	if ( get_transient( 'wp_livescore_la_kadario_daily_import_lock' ) ) {
+function wp_livescore_la_unschedule_kadario_daily_match_update() {
+	$timestamp = wp_next_scheduled( 'wp_livescore_la_run_kadario_daily_match_update' );
+	while ( $timestamp ) {
+		wp_unschedule_event( $timestamp, 'wp_livescore_la_run_kadario_daily_match_update' );
+		$timestamp = wp_next_scheduled( 'wp_livescore_la_run_kadario_daily_match_update' );
+	}
+}
+
+/**
+ * Run Kadario's daily AI-generated match updater.
+ */
+function wp_livescore_la_run_kadario_daily_match_update() {
+	if ( get_transient( 'wp_livescore_la_kadario_daily_match_update_lock' ) ) {
 		return;
 	}
 
@@ -204,17 +247,29 @@ function wp_livescore_la_run_kadario_daily_import() {
 		return;
 	}
 
-	set_transient( 'wp_livescore_la_kadario_daily_import_lock', 1, 30 * MINUTE_IN_SECONDS );
-	$result = wp_livescore_la_queue_kadario_prediction_import( 'all' );
-	delete_transient( 'wp_livescore_la_kadario_daily_import_lock' );
+	$import_key = wp_livescore_la_get_kadario_ai_generated_import_key();
+
+	set_transient( 'wp_livescore_la_kadario_daily_match_update_lock', 1, 30 * MINUTE_IN_SECONDS );
+	$result = wp_livescore_la_queue_kadario_prediction_import( $import_key );
+	delete_transient( 'wp_livescore_la_kadario_daily_match_update_lock' );
 
 	update_option(
-		'wp_livescore_la_last_kadario_daily_import',
+		'wp_livescore_la_last_kadario_daily_match_update',
 		array(
-			'ran_at' => current_time( 'mysql' ),
-			'result' => is_wp_error( $result ) ? $result->get_error_message() : $result,
+			'endpoint' => 'https://livescore-ai-635955947416.asia-east1.run.app/api/ai-generated/',
+			'import_key' => $import_key,
+			'ran_at'   => current_time( 'mysql' ),
+			'result'   => is_wp_error( $result ) ? $result->get_error_message() : $result,
 		),
 		false
 	);
+}
+add_action( 'wp_livescore_la_run_kadario_daily_match_update', 'wp_livescore_la_run_kadario_daily_match_update' );
+
+/**
+ * Backward-compatible runner for old scheduled events.
+ */
+function wp_livescore_la_run_kadario_daily_import() {
+	wp_livescore_la_run_kadario_daily_match_update();
 }
 add_action( 'wp_livescore_la_run_kadario_daily_import', 'wp_livescore_la_run_kadario_daily_import' );

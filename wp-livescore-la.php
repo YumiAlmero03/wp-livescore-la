@@ -876,6 +876,9 @@ function wp_livescore_la_deactivate() {
 	if ( function_exists( 'wp_livescore_la_unschedule_kadario_daily_import' ) ) {
 		wp_livescore_la_unschedule_kadario_daily_import();
 	}
+	if ( function_exists( 'wp_livescore_la_unschedule_kadario_daily_match_update' ) ) {
+		wp_livescore_la_unschedule_kadario_daily_match_update();
+	}
 	flush_rewrite_rules();
 }
 register_deactivation_hook( __FILE__, 'wp_livescore_la_deactivate' );
