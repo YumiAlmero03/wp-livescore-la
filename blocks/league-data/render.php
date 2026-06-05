@@ -24,6 +24,9 @@ $data_field = isset( $attributes['dataField'] ) ? sanitize_text_field( $attribut
 $value      = '';
 
 switch ( $data_field ) {
+	case '__title':
+		$value = get_the_title( $league_id );
+		break;
 	case 'sport':
 	case 'sports':
 		$value = get_post_meta( $league_id, '_league_sport_name', true );
@@ -79,6 +82,10 @@ switch ( $data_field ) {
 $empty_message = isset( $attributes['emptyMessage'] ) ? sanitize_text_field( $attributes['emptyMessage'] ) : '';
 $make_link     = ! empty( $attributes['makeLink'] );
 $permalink     = $make_link ? get_permalink( $league_id ) : '';
+$title         = isset( $attributes['title'] ) ? sanitize_text_field( $attributes['title'] ) : '';
+$title_tag_options = array( 'div', 'h2', 'h3', 'h4', 'h5', 'h6' );
+$title_tag     = isset( $attributes['titleTag'] ) ? sanitize_key( $attributes['titleTag'] ) : 'div';
+$title_tag     = in_array( $title_tag, $title_tag_options, true ) ? $title_tag : 'div';
 $prefix        = isset( $attributes['prefix'] ) ? sanitize_text_field( $attributes['prefix'] ) : '';
 $suffix        = isset( $attributes['suffix'] ) ? sanitize_text_field( $attributes['suffix'] ) : '';
 $text_align_options = array( 'left', 'center', 'right', 'justify' );
@@ -104,6 +111,9 @@ $wrapper_attributes = get_block_wrapper_attributes(
 ?>
 <div <?php echo wp_kses_data( $wrapper_attributes ); ?>>
 	<?php if ( '' !== (string) $value ) : ?>
+		<?php if ( '' !== $title ) : ?>
+			<<?php echo tag_escape( $title_tag ); ?> class="wp-livescore-la-league-data__title"><?php echo esc_html( $title ); ?></<?php echo tag_escape( $title_tag ); ?>>
+		<?php endif; ?>
 		<div class="wp-livescore-la-league-data__value">
 			<?php if ( '' !== $icon ) : ?>
 				<span class="wp-livescore-la-league-data__icon dashicons dashicons-<?php echo esc_attr( $icon ); ?>" aria-hidden="true"></span>

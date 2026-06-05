@@ -10,6 +10,74 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * Normalize imported titles for fuzzy duplicate checks.
+ *
+ * @param string $title Raw title.
+ * @return string
+ */
+function wp_livescore_la_normalize_import_title_key( $title ) {
+	$title = remove_accents( (string) $title );
+	$title = strtolower( $title );
+
+	return preg_replace( '/[^a-z0-9]+/', '', $title );
+}
+
+/**
+ * Find a post by an imported title, using normalized matching as a fallback.
+ *
+ * @param string $post_type Post type.
+ * @param string $title     Imported title.
+ * @return int
+ */
+function wp_livescore_la_find_post_by_import_title( $post_type, $title ) {
+	$title = sanitize_text_field( (string) $title );
+	if ( '' === $title ) {
+		return 0;
+	}
+
+	$post = get_page_by_path( sanitize_title( $title ), OBJECT, sanitize_key( $post_type ) );
+	if ( $post instanceof WP_Post ) {
+		return (int) $post->ID;
+	}
+
+	$posts = get_posts(
+		array(
+			'post_type'      => sanitize_key( $post_type ),
+			'post_status'    => 'any',
+			'title'          => $title,
+			'fields'         => 'ids',
+			'posts_per_page' => 1,
+		)
+	);
+
+	if ( ! empty( $posts ) ) {
+		return (int) $posts[0];
+	}
+
+	$normalized_title = wp_livescore_la_normalize_import_title_key( $title );
+	if ( '' === $normalized_title ) {
+		return 0;
+	}
+
+	$post_ids = get_posts(
+		array(
+			'post_type'      => sanitize_key( $post_type ),
+			'post_status'    => 'any',
+			'fields'         => 'ids',
+			'posts_per_page' => -1,
+		)
+	);
+
+	foreach ( $post_ids as $post_id ) {
+		if ( wp_livescore_la_normalize_import_title_key( get_the_title( $post_id ) ) === $normalized_title ) {
+			return (int) $post_id;
+		}
+	}
+
+	return 0;
+}
+
+/**
  * Extract league records from common API response shapes.
  *
  * @param mixed $payload Decoded JSON payload.
@@ -57,8 +125,16 @@ function wp_livescore_la_import_leagues( $records, $fallback_country = '', $fall
 			continue;
 		}
 
-		$api_id      = wp_livescore_la_record_value( $record, array( 'idLeague', 'api_id', 'id', 'league_id' ) );
-		$post_id     = wp_livescore_la_find_league_post( $api_id, $name );
+		$api_id              = wp_livescore_la_record_value( $record, array( 'idLeague', 'api_id', 'id', 'league_id' ) );
+		$is_sofascore_import = 'sofascore' === sanitize_key( $api_source );
+		$post_id             = $is_sofascore_import ? wp_livescore_la_find_post_by_import_title( 'league', $name ) : 0;
+		$post_id             = $post_id > 0 ? $post_id : wp_livescore_la_find_league_post( $is_sofascore_import ? '' : $api_id, $name );
+		$is_update           = $post_id > 0;
+		if ( $is_sofascore_import && ! $is_update ) {
+			$result['skipped']++;
+			continue;
+		}
+
 		$description = wp_livescore_la_record_value( $record, array( 'strDescriptionEN', 'description', 'desc', 'content' ) );
 
 		$post_data = array(
@@ -85,7 +161,7 @@ function wp_livescore_la_import_leagues( $records, $fallback_country = '', $fall
 			continue;
 		}
 
-		wp_livescore_la_update_league_meta_from_record( $saved_id, $record, $fallback_country, $fallback_sports );
+		wp_livescore_la_update_league_meta_from_record( $saved_id, $record, $fallback_country, $fallback_sports, $is_sofascore_import && $is_update );
 		if ( '' !== $api_source ) {
 			update_post_meta( $saved_id, WP_LIVESCORE_LA_META_PREFIX . 'api_source', sanitize_key( $api_source ) );
 		}
@@ -185,7 +261,44 @@ function wp_livescore_la_find_league_post( $api_id, $name ) {
 		)
 	);
 
-	return ! empty( $posts ) ? (int) $posts[0] : 0;
+	if ( ! empty( $posts ) ) {
+		return (int) $posts[0];
+	}
+
+	$normalized_name = wp_livescore_la_normalize_import_title_key( $name );
+	if ( '' === $normalized_name ) {
+		return 0;
+	}
+
+	$league_ids = get_posts(
+		array(
+			'post_type'      => 'league',
+			'post_status'    => 'any',
+			'title'          => sanitize_text_field( $name ),
+			'fields'         => 'ids',
+			'posts_per_page' => -1,
+		)
+	);
+
+	if ( empty( $league_ids ) ) {
+		$league_ids = get_posts(
+			array(
+				'post_type'      => 'league',
+				'post_status'    => 'any',
+				'fields'         => 'ids',
+				'posts_per_page' => -1,
+			)
+		);
+	}
+
+	foreach ( $league_ids as $league_id ) {
+		$normalized_title = wp_livescore_la_normalize_import_title_key( get_the_title( $league_id ) );
+		if ( '' !== $normalized_title && ( $normalized_title === $normalized_name || false !== strpos( $normalized_title, $normalized_name ) || false !== strpos( $normalized_name, $normalized_title ) ) ) {
+			return (int) $league_id;
+		}
+	}
+
+	return 0;
 }
 
 /**
@@ -195,8 +308,9 @@ function wp_livescore_la_find_league_post( $api_id, $name ) {
  * @param array  $record           API record.
  * @param string $fallback_country Optional form country.
  * @param string $fallback_sports  Optional form sports.
+ * @param bool   $skip_api_id      Whether to preserve the current API ID.
  */
-function wp_livescore_la_update_league_meta_from_record( $post_id, $record, $fallback_country, $fallback_sports ) {
+function wp_livescore_la_update_league_meta_from_record( $post_id, $record, $fallback_country, $fallback_sports, $skip_api_id = false ) {
 	$mapping = array(
 		'country'          => array( 'strCountry', 'country', 'Country' ),
 		'sports'           => array( 'strSport', 'sports', 'sport', 'Sport' ),
@@ -217,6 +331,10 @@ function wp_livescore_la_update_league_meta_from_record( $post_id, $record, $fal
 	);
 
 	foreach ( wp_livescore_la_league_meta_fields() as $field => $label ) {
+		if ( $skip_api_id && 'api_id' === $field ) {
+			continue;
+		}
+
 		$value = isset( $mapping[ $field ] ) ? wp_livescore_la_record_value( $record, $mapping[ $field ] ) : '';
 
 		if ( 'country' === $field && '' === $value ) {

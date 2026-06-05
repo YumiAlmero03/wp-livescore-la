@@ -117,13 +117,22 @@ function wp_livescore_la_render_category_shortcode( $atts ) {
 	}
 
 	if ( false === $payload ) {
+		$headers = array(
+			'Accept' => 'application/json',
+		);
+		$endpoint_host = wp_parse_url( $endpoint, PHP_URL_HOST );
+		if ( 'livescore-ai-635955947416.asia-east1.run.app' === $endpoint_host && function_exists( 'wp_livescore_la_get_website_name_header' ) ) {
+			$website_name = wp_livescore_la_get_website_name_header();
+			if ( '' !== $website_name ) {
+				$headers['X-Website-Name'] = $website_name;
+			}
+		}
+
 		$response = wp_remote_get(
 			$endpoint,
 			array(
 				'timeout' => 15,
-				'headers' => array(
-					'Accept' => 'application/json',
-				),
+				'headers' => $headers,
 			)
 		);
 

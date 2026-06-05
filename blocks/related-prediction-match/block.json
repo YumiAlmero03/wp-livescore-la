@@ -1,0 +1,31 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "wp-livescore/related-prediction-match",
+	"title": "Related Prediction / Match",
+	"category": "livescore",
+	"icon": "admin-links",
+	"description": "Displays the related Prediction or Match using the Match API ID.",
+	"textdomain": "wp-livescore-la",
+	"attributes": {
+		"title": { "type": "string", "default": "" },
+		"targetType": { "type": "string", "default": "auto" },
+		"apiId": { "type": "string", "default": "" },
+		"showImage": { "type": "boolean", "default": true },
+		"showExcerpt": { "type": "boolean", "default": true },
+		"showMeta": { "type": "boolean", "default": true },
+		"emptyMessage": { "type": "string", "default": "" }
+	},
+	"usesContext": [ "postId", "postType" ],
+	"supports": {
+		"align": [ "wide", "full" ],
+		"anchor": true,
+		"color": { "background": true, "text": true, "link": true },
+		"spacing": { "margin": true, "padding": true, "blockGap": true },
+		"typography": { "fontSize": true, "lineHeight": true }
+	},
+	"editorScript": "file:./index.js",
+	"style": "file:./style.css",
+	"editorStyle": "file:./style.css",
+	"render": "file:./render.php"
+}

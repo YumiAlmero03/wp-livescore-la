@@ -11,6 +11,8 @@
 		"leagueId": { "type": "number", "default": 0 },
 		"dataField": { "type": "string", "default": "country" },
 		"icon": { "type": "string", "default": "" },
+		"title": { "type": "string", "default": "" },
+		"titleTag": { "type": "string", "default": "div" },
 		"prefix": { "type": "string", "default": "" },
 		"suffix": { "type": "string", "default": "" },
 		"textAlign": { "type": "string", "default": "" },

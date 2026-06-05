@@ -44,6 +44,11 @@
 							checked: !! attributes.showImage,
 							onChange: function ( value ) { setAttributes( { showImage: value } ); }
 						} ),
+						el( ToggleControl, {
+							label: __( 'Show team title', 'wp-livescore-la' ),
+							checked: ! Object.prototype.hasOwnProperty.call( attributes, 'showTitle' ) || !! attributes.showTitle,
+							onChange: function ( value ) { setAttributes( { showTitle: value } ); }
+						} ),
 						el( SelectControl, {
 							label: __( 'Team logo position', 'wp-livescore-la' ),
 							value: attributes.imagePosition || 'top',

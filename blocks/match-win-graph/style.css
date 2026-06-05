@@ -1,0 +1,73 @@
+.wp-livescore-la-match-win-graph {
+	--wp-livescore-la-win-home: var(--ast-global-color-0, #0170b9);
+	--wp-livescore-la-win-draw: var(--ast-global-color-2, #3a3a3a);
+	--wp-livescore-la-win-away: var(--ast-global-color-1, #3f3f46);
+	box-sizing: border-box;
+}
+
+.wp-livescore-la-match-win-graph__title {
+	font-weight: 700;
+	margin-bottom: 0.65rem;
+}
+
+.wp-livescore-la-match-win-graph__bar {
+	background: color-mix(in srgb, currentColor 12%, transparent);
+	border-radius: 6px;
+	display: flex;
+	height: 16px;
+	overflow: hidden;
+	width: 100%;
+}
+
+.wp-livescore-la-match-win-graph__segment {
+	display: block;
+	min-width: 0;
+}
+
+.wp-livescore-la-match-win-graph__segment--home,
+.wp-livescore-la-match-win-graph__item--home .wp-livescore-la-match-win-graph__swatch {
+	background-color: var(--wp-livescore-la-win-home);
+}
+
+.wp-livescore-la-match-win-graph__segment--draw,
+.wp-livescore-la-match-win-graph__item--draw .wp-livescore-la-match-win-graph__swatch {
+	background-color: var(--wp-livescore-la-win-draw);
+}
+
+.wp-livescore-la-match-win-graph__segment--away,
+.wp-livescore-la-match-win-graph__item--away .wp-livescore-la-match-win-graph__swatch {
+	background-color: var(--wp-livescore-la-win-away);
+}
+
+.wp-livescore-la-match-win-graph__legend {
+	display: grid;
+	gap: 0.5rem;
+	margin-top: 0.75rem;
+}
+
+.wp-livescore-la-match-win-graph__item {
+	align-items: center;
+	display: grid;
+	gap: 0.5rem;
+	grid-template-columns: 12px minmax(0, 1fr) auto;
+}
+
+.wp-livescore-la-match-win-graph__swatch {
+	border-radius: 2px;
+	display: block;
+	height: 12px;
+	width: 12px;
+}
+
+.wp-livescore-la-match-win-graph__label,
+.wp-livescore-la-match-win-graph__value {
+	overflow-wrap: anywhere;
+}
+
+.wp-livescore-la-match-win-graph__value {
+	font-weight: 700;
+}
+
+.wp-livescore-la-match-win-graph__empty {
+	margin: 0;
+}

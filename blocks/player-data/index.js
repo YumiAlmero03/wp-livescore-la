@@ -10,6 +10,7 @@
 	const __ = i18n.__;
 
 	const playerFields = [
+		{ label: __( 'Title', 'wp-livescore-la' ), value: '__title' },
 		{ label: __( 'API ID', 'wp-livescore-la' ), value: '_player_api_id' },
 		{ label: __( 'Sport ID', 'wp-livescore-la' ), value: '_player_sport_id' },
 		{ label: __( 'Sport Name', 'wp-livescore-la' ), value: '_player_sport_name' },
@@ -56,6 +57,15 @@
 		{ label: __( 'Justify', 'wp-livescore-la' ), value: 'justify' }
 	];
 
+	const titleTagOptions = [
+		{ label: __( 'Default', 'wp-livescore-la' ), value: 'div' },
+		{ label: 'H2', value: 'h2' },
+		{ label: 'H3', value: 'h3' },
+		{ label: 'H4', value: 'h4' },
+		{ label: 'H5', value: 'h5' },
+		{ label: 'H6', value: 'h6' }
+	];
+
 	blocks.registerBlockType( 'wp-livescore/player-data', {
 		edit: function ( props ) {
 			const attributes = props.attributes;
@@ -87,6 +97,17 @@
 							value: attributes.icon || '',
 							options: iconOptions,
 							onChange: function ( value ) { setAttributes( { icon: value } ); }
+						} ),
+						el( TextControl, {
+							label: __( 'Title', 'wp-livescore-la' ),
+							value: attributes.title || '',
+							onChange: function ( value ) { setAttributes( { title: value } ); }
+						} ),
+						el( SelectControl, {
+							label: __( 'Title heading type', 'wp-livescore-la' ),
+							value: attributes.titleTag || 'div',
+							options: titleTagOptions,
+							onChange: function ( value ) { setAttributes( { titleTag: value } ); }
 						} ),
 						el( TextControl, {
 							label: __( 'Prefix text', 'wp-livescore-la' ),

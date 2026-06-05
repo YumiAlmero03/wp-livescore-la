@@ -23,13 +23,17 @@ if ( $team_id <= 0 ) {
 $field_options = function_exists( 'wp_livescore_la_team_meta_fields' ) ? wp_livescore_la_team_meta_fields() : array();
 $data_field    = isset( $attributes['dataField'] ) ? sanitize_key( $attributes['dataField'] ) : '_team_short_name';
 
-if ( ! isset( $field_options[ $data_field ] ) ) {
+if ( '__title' !== $data_field && ! isset( $field_options[ $data_field ] ) ) {
 	$data_field = '_team_short_name';
 }
 
-$value         = get_post_meta( $team_id, $data_field, true );
+$value         = '__title' === $data_field ? get_the_title( $team_id ) : get_post_meta( $team_id, $data_field, true );
 $empty_message = isset( $attributes['emptyMessage'] ) ? sanitize_text_field( $attributes['emptyMessage'] ) : '';
 $make_link     = ! empty( $attributes['makeLink'] );
+$title         = isset( $attributes['title'] ) ? sanitize_text_field( $attributes['title'] ) : '';
+$title_tag_options = array( 'div', 'h2', 'h3', 'h4', 'h5', 'h6' );
+$title_tag     = isset( $attributes['titleTag'] ) ? sanitize_key( $attributes['titleTag'] ) : 'div';
+$title_tag     = in_array( $title_tag, $title_tag_options, true ) ? $title_tag : 'div';
 $prefix        = isset( $attributes['prefix'] ) ? sanitize_text_field( $attributes['prefix'] ) : '';
 $suffix        = isset( $attributes['suffix'] ) ? sanitize_text_field( $attributes['suffix'] ) : '';
 $url_fields    = array( '_team_logo', '_team_website', '_team_facebook', '_team_instagram', '_team_twitter', '_team_youtube' );
@@ -48,6 +52,16 @@ $text_align             = in_array( $text_align, $text_align_options, true ) ? $
 $icon_options           = array( 'admin-site-alt3', 'shield', 'flag', 'groups', 'admin-links', 'format-image', 'yes-alt', 'location' );
 $icon                   = isset( $attributes['icon'] ) ? sanitize_key( $attributes['icon'] ) : '';
 $icon                   = in_array( $icon, $icon_options, true ) ? $icon : '';
+$recent_form_items      = array();
+
+if ( '_team_recent_form' === $data_field && '' !== (string) $value ) {
+	$recent_form_items = array_filter(
+		array_map(
+			'trim',
+			explode( ',', (string) $value )
+		)
+	);
+}
 
 if ( '' === (string) $value && '' === $empty_message ) {
 	return '';
@@ -65,6 +79,9 @@ $wrapper_attributes = get_block_wrapper_attributes(
 ?>
 <div <?php echo wp_kses_data( $wrapper_attributes ); ?>>
 	<?php if ( '' !== (string) $value ) : ?>
+		<?php if ( '' !== $title ) : ?>
+			<<?php echo tag_escape( $title_tag ); ?> class="wp-livescore-la-team-data__title"><?php echo esc_html( $title ); ?></<?php echo tag_escape( $title_tag ); ?>>
+		<?php endif; ?>
 		<div class="wp-livescore-la-team-data__value">
 			<?php if ( '' !== $icon ) : ?>
 				<span class="wp-livescore-la-team-data__icon dashicons dashicons-<?php echo esc_attr( $icon ); ?>" aria-hidden="true"></span>
@@ -75,6 +92,12 @@ $wrapper_attributes = get_block_wrapper_attributes(
 				<?php endif; ?>
 				<?php if ( $make_link && $permalink ) : ?>
 					<a href="<?php echo esc_url( $permalink ); ?>"><?php echo esc_html( $value ); ?></a>
+				<?php elseif ( ! empty( $recent_form_items ) ) : ?>
+					<ul class="wp-livescore-la-team-data__recent-form">
+						<?php foreach ( $recent_form_items as $form_item ) : ?>
+							<li><?php echo esc_html( $form_item ); ?></li>
+						<?php endforeach; ?>
+					</ul>
 				<?php else : ?>
 					<span class="wp-livescore-la-team-data__field"><?php echo esc_html( $value ); ?></span>
 				<?php endif; ?>

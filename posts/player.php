@@ -74,6 +74,74 @@ function wp_livescore_la_player_meta_fields() {
 }
 
 /**
+ * Format short player position codes for display.
+ *
+ * @param string $position Raw position value.
+ * @return string
+ */
+function wp_livescore_la_format_player_position( $position ) {
+	$position = trim( (string) $position );
+
+	if ( '' === $position ) {
+		return '';
+	}
+
+	$positions = array(
+		'G'   => __( 'Goalkeeper', 'wp-livescore-la' ),
+		'GK'  => __( 'Goalkeeper', 'wp-livescore-la' ),
+		'D'   => __( 'Defender', 'wp-livescore-la' ),
+		'DF'  => __( 'Defender', 'wp-livescore-la' ),
+		'DEF' => __( 'Defender', 'wp-livescore-la' ),
+		'RB'  => __( 'Right Back', 'wp-livescore-la' ),
+		'RWB' => __( 'Right Wing Back', 'wp-livescore-la' ),
+		'LB'  => __( 'Left Back', 'wp-livescore-la' ),
+		'LWB' => __( 'Left Wing Back', 'wp-livescore-la' ),
+		'CB'  => __( 'Centre Back', 'wp-livescore-la' ),
+		'RCB' => __( 'Right Centre Back', 'wp-livescore-la' ),
+		'LCB' => __( 'Left Centre Back', 'wp-livescore-la' ),
+		'WB'  => __( 'Wing Back', 'wp-livescore-la' ),
+		'M'   => __( 'Midfielder', 'wp-livescore-la' ),
+		'MF'  => __( 'Midfielder', 'wp-livescore-la' ),
+		'MID' => __( 'Midfielder', 'wp-livescore-la' ),
+		'DM'  => __( 'Defensive Midfielder', 'wp-livescore-la' ),
+		'CDM' => __( 'Defensive Midfielder', 'wp-livescore-la' ),
+		'CM'  => __( 'Central Midfielder', 'wp-livescore-la' ),
+		'AM'  => __( 'Attacking Midfielder', 'wp-livescore-la' ),
+		'CAM' => __( 'Attacking Midfielder', 'wp-livescore-la' ),
+		'RM'  => __( 'Right Midfielder', 'wp-livescore-la' ),
+		'LM'  => __( 'Left Midfielder', 'wp-livescore-la' ),
+		'F'   => __( 'Forward', 'wp-livescore-la' ),
+		'FW'  => __( 'Forward', 'wp-livescore-la' ),
+		'ATT' => __( 'Forward', 'wp-livescore-la' ),
+		'RW'  => __( 'Right Winger', 'wp-livescore-la' ),
+		'LW'  => __( 'Left Winger', 'wp-livescore-la' ),
+		'ST'  => __( 'Striker', 'wp-livescore-la' ),
+		'CF'  => __( 'Centre Forward', 'wp-livescore-la' ),
+	);
+
+	$format_token = function ( $value ) use ( $positions ) {
+		$value      = trim( (string) $value );
+		$normalized = strtoupper( preg_replace( '/[^A-Za-z0-9]+/', '', $value ) );
+
+		return isset( $positions[ $normalized ] ) ? $positions[ $normalized ] : $value;
+	};
+
+	$parts = preg_split( '/(\s*[,\/|]\s*)/', $position, -1, PREG_SPLIT_DELIM_CAPTURE );
+
+	if ( is_array( $parts ) && count( $parts ) > 1 ) {
+		$formatted = '';
+
+		foreach ( $parts as $part ) {
+			$formatted .= preg_match( '/^\s*[,\/|]\s*$/', $part ) ? trim( $part ) . ' ' : $format_token( $part );
+		}
+
+		return trim( $formatted );
+	}
+
+	return $format_token( $position );
+}
+
+/**
  * Register Player meta fields.
  */
 function wp_livescore_la_register_player_meta() {
@@ -270,7 +338,7 @@ function wp_livescore_la_append_player_details_to_content( $content ) {
 		__( 'Height', 'wp-livescore-la' )        => get_post_meta( $player_id, '_player_height', true ),
 		__( 'Weight', 'wp-livescore-la' )        => get_post_meta( $player_id, '_player_weight', true ),
 		__( 'Gender', 'wp-livescore-la' )        => get_post_meta( $player_id, '_player_gender', true ),
-		__( 'Position', 'wp-livescore-la' )      => get_post_meta( $player_id, '_player_position', true ),
+		__( 'Position', 'wp-livescore-la' )      => wp_livescore_la_format_player_position( get_post_meta( $player_id, '_player_position', true ) ),
 		__( 'Jersey Number', 'wp-livescore-la' ) => get_post_meta( $player_id, '_player_number', true ),
 	);
 
@@ -329,7 +397,7 @@ function wp_livescore_la_player_admin_column_content( $column, $post_id ) {
 	$values = array(
 		'player_team'     => get_post_meta( $post_id, '_player_team_name', true ),
 		'player_sport'    => get_post_meta( $post_id, '_player_sport_name', true ),
-		'player_position' => get_post_meta( $post_id, '_player_position', true ),
+		'player_position' => wp_livescore_la_format_player_position( get_post_meta( $post_id, '_player_position', true ) ),
 		'player_number'   => get_post_meta( $post_id, '_player_number', true ),
 		'player_status'   => get_post_meta( $post_id, '_player_status', true ),
 		'player_api_id'   => get_post_meta( $post_id, '_player_api_id', true ),
@@ -444,8 +512,15 @@ function wp_livescore_la_import_players( $records, $team_id = 0, $api_source = '
 			continue;
 		}
 
-		$api_id  = wp_livescore_la_record_value( $record, array( 'api_id', 'id', 'player_id' ) );
-		$post_id = wp_livescore_la_find_player_post( $api_id, $name, $team_id );
+		$api_id              = wp_livescore_la_record_value( $record, array( 'api_id', 'id', 'player_id' ) );
+		$is_sofascore_import = 'sofascore' === sanitize_key( $api_source );
+		$post_id             = wp_livescore_la_find_player_post( $is_sofascore_import ? '' : $api_id, $name, $team_id );
+		$is_update           = $post_id > 0;
+		if ( $is_sofascore_import && ! $is_update ) {
+			$result['skipped']++;
+			continue;
+		}
+
 		$post    = array(
 			'post_type'   => 'player',
 			'post_status' => 'publish',
@@ -466,7 +541,7 @@ function wp_livescore_la_import_players( $records, $team_id = 0, $api_source = '
 
 		update_post_meta( $saved_id, '_player_status', 'active' );
 
-		if ( '' !== $api_id ) {
+		if ( '' !== $api_id && ! ( $is_sofascore_import && $is_update ) ) {
 			update_post_meta( $saved_id, '_player_api_id', sanitize_text_field( $api_id ) );
 		}
 

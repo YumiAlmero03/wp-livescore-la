@@ -16,6 +16,11 @@
 	gap: 0.25em;
 }
 
+.wp-livescore-la-team-data__title {
+	font-weight: 600;
+	margin-bottom: 0.25em;
+}
+
 .wp-livescore-la-team-data.has-text-transform-uppercase {
 	text-transform: uppercase;
 }
@@ -59,6 +64,28 @@
 	height: 1em;
 	line-height: 1;
 	width: 1em;
+}
+
+.wp-livescore-la-team-data__recent-form {
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: 0.35em;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.wp-livescore-la-team-data__recent-form li {
+	align-items: center;
+	border: 1px solid currentColor;
+	border-radius: 999px;
+	display: inline-flex;
+	font-size: 0.85em;
+	height: 1.8em;
+	justify-content: center;
+	line-height: 1;
+	min-width: 1.8em;
+	padding: 0 0.45em;
 }
 
 .wp-livescore-la-team-data__empty {

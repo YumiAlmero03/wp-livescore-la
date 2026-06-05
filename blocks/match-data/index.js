@@ -10,6 +10,7 @@
 	const __ = i18n.__;
 
 	const matchFields = [
+		{ label: __( 'Title', 'wp-livescore-la' ), value: '__title' },
 		{ label: __( 'API ID', 'wp-livescore-la' ), value: '_match_api_id' },
 		{ label: __( 'SportScore Slug', 'wp-livescore-la' ), value: '_match_sportscore_slug' },
 		{ label: __( 'Sport ID', 'wp-livescore-la' ), value: '_match_sport_id' },
@@ -39,6 +40,12 @@
 		{ label: __( 'Match Status', 'wp-livescore-la' ), value: '_match_status' },
 		{ label: __( 'Home Score', 'wp-livescore-la' ), value: '_match_home_score' },
 		{ label: __( 'Away Score', 'wp-livescore-la' ), value: '_match_away_score' },
+		{ label: __( 'Home Win Percentage', 'wp-livescore-la' ), value: '_match_home_win_percentage' },
+		{ label: __( 'Away Win Percentage', 'wp-livescore-la' ), value: '_match_away_win_percentage' },
+		{ label: __( 'Draw Percentage', 'wp-livescore-la' ), value: '_match_draw_percentage' },
+		{ label: __( 'Best Betting Angle', 'wp-livescore-la' ), value: '_match_best_betting_angle' },
+		{ label: __( 'Correct Score Pick', 'wp-livescore-la' ), value: '_match_correct_score_pick' },
+		{ label: __( 'Winner Prediction', 'wp-livescore-la' ), value: '_match_winner_prediction' },
 		{ label: __( 'Group Name', 'wp-livescore-la' ), value: '_match_group_name' },
 		{ label: __( 'Referee', 'wp-livescore-la' ), value: '_match_referee' },
 		{ label: __( 'Venue', 'wp-livescore-la' ), value: '_match_venue' },
@@ -74,6 +81,15 @@
 		{ label: __( 'Justify', 'wp-livescore-la' ), value: 'justify' }
 	];
 
+	const titleTagOptions = [
+		{ label: __( 'Default', 'wp-livescore-la' ), value: 'div' },
+		{ label: 'H2', value: 'h2' },
+		{ label: 'H3', value: 'h3' },
+		{ label: 'H4', value: 'h4' },
+		{ label: 'H5', value: 'h5' },
+		{ label: 'H6', value: 'h6' }
+	];
+
 	blocks.registerBlockType( 'wp-livescore/match-data', {
 		edit: function ( props ) {
 			const attributes = props.attributes;
@@ -105,6 +121,17 @@
 								value: attributes.icon || '',
 								options: iconOptions,
 								onChange: function ( value ) { setAttributes( { icon: value } ); }
+							} ),
+							el( TextControl, {
+								label: __( 'Title', 'wp-livescore-la' ),
+								value: attributes.title || '',
+								onChange: function ( value ) { setAttributes( { title: value } ); }
+							} ),
+							el( SelectControl, {
+								label: __( 'Title heading type', 'wp-livescore-la' ),
+								value: attributes.titleTag || 'div',
+								options: titleTagOptions,
+								onChange: function ( value ) { setAttributes( { titleTag: value } ); }
 							} ),
 							el( TextControl, {
 								label: __( 'Prefix text', 'wp-livescore-la' ),

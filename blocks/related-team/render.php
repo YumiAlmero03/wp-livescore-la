@@ -29,6 +29,7 @@ $team_id       = (int) get_post_meta( $match_id, '_match_' . $team_side . '_team
 	$image_size    = max( 2.0, min( 12.0, $image_size ) );
 	$image_position = isset( $attributes['imagePosition'] ) ? sanitize_key( $attributes['imagePosition'] ) : 'top';
 	$image_position = in_array( $image_position, array( 'top', 'left', 'right' ), true ) ? $image_position : 'top';
+	$show_title   = ! array_key_exists( 'showTitle', $attributes ) || ! empty( $attributes['showTitle'] );
 	$use_short_name = ! empty( $attributes['useShortName'] );
 	$make_link     = ! array_key_exists( 'makeLink', $attributes ) || ! empty( $attributes['makeLink'] );
 
@@ -107,12 +108,16 @@ $permalink          = $make_link && $team_id > 0 ? get_permalink( $team_id ) : '
 	<?php if ( $permalink ) : ?>
 		<a class="wp-livescore-la-related-team__link" href="<?php echo esc_url( $permalink ); ?>">
 			<?php echo wp_kses_post( $team_image ); ?>
-			<span class="wp-livescore-la-related-team__name"><?php echo esc_html( $team_name ); ?></span>
+			<?php if ( $show_title ) : ?>
+				<span class="wp-livescore-la-related-team__name"><?php echo esc_html( $team_name ); ?></span>
+			<?php endif; ?>
 		</a>
 	<?php else : ?>
 		<div class="wp-livescore-la-related-team__link">
 			<?php echo wp_kses_post( $team_image ); ?>
-			<span class="wp-livescore-la-related-team__name"><?php echo esc_html( $team_name ); ?></span>
+			<?php if ( $show_title ) : ?>
+				<span class="wp-livescore-la-related-team__name"><?php echo esc_html( $team_name ); ?></span>
+			<?php endif; ?>
 		</div>
 	<?php endif; ?>
 </div>

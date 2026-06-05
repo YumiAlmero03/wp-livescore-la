@@ -99,6 +99,9 @@ $render_player_inner_blocks = function ( $player_id ) use ( $inner_blocks ) {
 $render_default_player_card = function ( $player_id ) use ( $show_images, $show_meta, $show_number, $show_position, $make_links ) {
 	$number = sanitize_text_field( get_post_meta( $player_id, '_player_number', true ) );
 	$position = sanitize_text_field( get_post_meta( $player_id, '_player_position', true ) );
+	if ( function_exists( 'wp_livescore_la_format_player_position' ) ) {
+		$position = wp_livescore_la_format_player_position( $position );
+	}
 	$meta   = array();
 
 	if ( $show_number && '' !== $number ) {

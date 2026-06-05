@@ -44,6 +44,14 @@
 			"type": "string",
 			"default": "Read More"
 		},
+		"showLoadMore": {
+			"type": "boolean",
+			"default": true
+		},
+		"loadMoreText": {
+			"type": "string",
+			"default": "View More"
+		},
 		"emptyMessage": {
 			"type": "string",
 			"default": "No related blog posts found."
@@ -69,6 +77,7 @@
 		}
 	},
 	"editorScript": "file:./index.js",
+	"viewScript": "file:./view.js",
 	"style": "file:./style.css",
 	"editorStyle": "file:./style.css",
 	"render": "file:./render.php"

@@ -22,6 +22,48 @@ if ( $league_id > 0 && 'league' !== get_post_type( $league_id ) ) {
 $now_time = current_time( 'timestamp' );
 $today    = current_time( 'Y-m-d' );
 
+$render_match_counter_items = function ( $items ) {
+	if ( empty( $items ) ) {
+		return '';
+	}
+
+	$wrapper_attributes = get_block_wrapper_attributes(
+		array(
+			'class' => 'wp-livescore-la-match-counter',
+		)
+	);
+
+	ob_start();
+	?>
+	<div <?php echo wp_kses_data( $wrapper_attributes ); ?>>
+		<?php foreach ( $items as $item ) : ?>
+			<div class="wp-livescore-la-match-counter__item wp-livescore-la-match-counter__item--<?php echo esc_attr( $item['key'] ); ?>">
+				<span class="wp-livescore-la-match-counter__count"><?php echo esc_html( number_format_i18n( $item['count'] ) ); ?></span>
+				<span class="wp-livescore-la-match-counter__label"><?php echo esc_html( $item['label'] ); ?></span>
+			</div>
+		<?php endforeach; ?>
+	</div>
+	<?php
+
+	return (string) ob_get_clean();
+};
+
+$cache_key = 'wp_livescore_la_match_counter_' . md5(
+	wp_json_encode(
+		array(
+			'league_id'   => $league_id,
+			'attributes'  => $attributes,
+			'time_bucket' => (int) floor( $now_time / ( 10 * MINUTE_IN_SECONDS ) ),
+		)
+	)
+);
+
+$cached_items = get_transient( $cache_key );
+if ( is_array( $cached_items ) ) {
+	echo $render_match_counter_items( $cached_items ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	return;
+}
+
 $date_queries = array(
 	'all'      => array(),
 	'upcoming' => array(
@@ -143,6 +185,53 @@ $count_matches = function ( $date_query ) use ( $league_id ) {
 	return (int) $query->found_posts;
 };
 
+$count_teams = function () use ( $league_id ) {
+	if ( $league_id <= 0 ) {
+		$query = new WP_Query(
+			array(
+				'post_type'           => 'team',
+				'post_status'         => 'publish',
+				'posts_per_page'      => 1,
+				'fields'              => 'ids',
+				'ignore_sticky_posts' => true,
+			)
+		);
+
+		return (int) $query->found_posts;
+	}
+
+	$match_ids = get_posts(
+		array(
+			'post_type'              => 'match',
+			'post_status'            => 'publish',
+			'posts_per_page'         => -1,
+			'fields'                 => 'ids',
+			'ignore_sticky_posts'    => true,
+			'no_found_rows'          => true,
+			'update_post_meta_cache' => false,
+			'update_post_term_cache' => false,
+			'meta_query'             => array(
+				array(
+					'key'   => '_match_league_id',
+					'value' => $league_id,
+				),
+			),
+		)
+	);
+
+	$team_ids = array();
+	foreach ( $match_ids as $match_id ) {
+		foreach ( array( '_match_home_team_id', '_match_away_team_id' ) as $meta_key ) {
+			$team_id = (int) get_post_meta( (int) $match_id, $meta_key, true );
+			if ( $team_id > 0 && 'team' === get_post_type( $team_id ) ) {
+				$team_ids[ $team_id ] = true;
+			}
+		}
+	}
+
+	return count( $team_ids );
+};
+
 $items = array();
 
 if ( ! array_key_exists( 'showAll', $attributes ) || ! empty( $attributes['showAll'] ) ) {
@@ -185,21 +274,18 @@ if ( ! array_key_exists( 'showPast', $attributes ) || ! empty( $attributes['show
 	);
 }
 
+if ( ! empty( $attributes['showTeams'] ) ) {
+	$items[] = array(
+		'key'   => 'teams',
+		'label' => isset( $attributes['teamsLabel'] ) && '' !== $attributes['teamsLabel'] ? sanitize_text_field( $attributes['teamsLabel'] ) : __( 'Teams', 'wp-livescore-la' ),
+		'count' => $count_teams(),
+	);
+}
+
 if ( empty( $items ) ) {
 	return '';
 }
 
-$wrapper_attributes = get_block_wrapper_attributes(
-	array(
-		'class' => 'wp-livescore-la-match-counter',
-	)
-);
-?>
-<div <?php echo wp_kses_data( $wrapper_attributes ); ?>>
-	<?php foreach ( $items as $item ) : ?>
-		<div class="wp-livescore-la-match-counter__item wp-livescore-la-match-counter__item--<?php echo esc_attr( $item['key'] ); ?>">
-			<span class="wp-livescore-la-match-counter__count"><?php echo esc_html( number_format_i18n( $item['count'] ) ); ?></span>
-			<span class="wp-livescore-la-match-counter__label"><?php echo esc_html( $item['label'] ); ?></span>
-		</div>
-	<?php endforeach; ?>
-</div>
+set_transient( $cache_key, $items, 10 * MINUTE_IN_SECONDS );
+
+echo $render_match_counter_items( $items ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped

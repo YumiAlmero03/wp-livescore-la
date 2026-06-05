@@ -108,6 +108,21 @@
 								onChange: function ( value ) {
 									setAttributes( { readMoreText: value } );
 								}
+							} ),
+						el( ToggleControl, {
+							label: __( 'View more button', 'wp-livescore-la' ),
+							checked: attributes.showLoadMore,
+							onChange: function ( value ) {
+								setAttributes( { showLoadMore: value } );
+							}
+						} ),
+						attributes.showLoadMore &&
+							el( TextControl, {
+								label: __( 'View more text', 'wp-livescore-la' ),
+								value: attributes.loadMoreText,
+								onChange: function ( value ) {
+									setAttributes( { loadMoreText: value } );
+								}
 							} )
 					)
 				),

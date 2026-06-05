@@ -28,11 +28,21 @@
 	}
 
 	function startCountdown( countdown ) {
+		if ( '1' === countdown.dataset.countdownInitialized ) {
+			return;
+		}
+
+		countdown.dataset.countdownInitialized = '1';
 		updateCountdown( countdown );
 		window.setInterval( function () {
 			updateCountdown( countdown );
 		}, 1000 );
 	}
 
-	document.querySelectorAll( '[data-match-countdown]' ).forEach( startCountdown );
+	function initCountdowns( root ) {
+		( root || document ).querySelectorAll( '[data-match-countdown]' ).forEach( startCountdown );
+	}
+
+	window.wpLivescoreLaInitCountdowns = initCountdowns;
+	initCountdowns( document );
 } )();

@@ -14,11 +14,13 @@
 		"showLive": { "type": "boolean", "default": true },
 		"showToday": { "type": "boolean", "default": true },
 		"showPast": { "type": "boolean", "default": true },
+		"showTeams": { "type": "boolean", "default": false },
 		"allLabel": { "type": "string", "default": "All" },
 		"upcomingLabel": { "type": "string", "default": "Upcoming" },
 		"liveLabel": { "type": "string", "default": "Live" },
 		"todayLabel": { "type": "string", "default": "Today" },
-		"pastLabel": { "type": "string", "default": "Past" }
+		"pastLabel": { "type": "string", "default": "Past" },
+		"teamsLabel": { "type": "string", "default": "Teams" }
 	},
 	"usesContext": [ "postId", "postType" ],
 	"supports": {

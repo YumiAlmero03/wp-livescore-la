@@ -10,6 +10,7 @@
 	const __ = i18n.__;
 
 	const teamFields = [
+		{ label: __( 'Title', 'wp-livescore-la' ), value: '__title' },
 		{ label: __( 'API ID', 'wp-livescore-la' ), value: '_team_api_id' },
 		{ label: __( 'Shortcut Name', 'wp-livescore-la' ), value: '_team_short_name' },
 		{ label: __( 'Logo URL', 'wp-livescore-la' ), value: '_team_logo' },
@@ -18,6 +19,8 @@
 		{ label: __( 'Instagram', 'wp-livescore-la' ), value: '_team_instagram' },
 		{ label: __( 'Twitter/X', 'wp-livescore-la' ), value: '_team_twitter' },
 		{ label: __( 'YouTube', 'wp-livescore-la' ), value: '_team_youtube' },
+		{ label: __( 'Recent Form', 'wp-livescore-la' ), value: '_team_recent_form' },
+		{ label: __( 'Coach Name', 'wp-livescore-la' ), value: '_team_coach_name' },
 		{ label: __( 'Status', 'wp-livescore-la' ), value: '_team_status' },
 		{ label: __( 'Sport ID', 'wp-livescore-la' ), value: '_team_sport_id' },
 		{ label: __( 'Sport Name', 'wp-livescore-la' ), value: '_team_sport_name' },
@@ -57,6 +60,15 @@
 		{ label: __( 'Justify', 'wp-livescore-la' ), value: 'justify' }
 	];
 
+	const titleTagOptions = [
+		{ label: __( 'Default', 'wp-livescore-la' ), value: 'div' },
+		{ label: 'H2', value: 'h2' },
+		{ label: 'H3', value: 'h3' },
+		{ label: 'H4', value: 'h4' },
+		{ label: 'H5', value: 'h5' },
+		{ label: 'H6', value: 'h6' }
+	];
+
 	blocks.registerBlockType( 'wp-livescore/team-data', {
 		edit: function ( props ) {
 			const attributes = props.attributes;
@@ -88,6 +100,17 @@
 							value: attributes.icon || '',
 							options: iconOptions,
 							onChange: function ( value ) { setAttributes( { icon: value } ); }
+						} ),
+						el( TextControl, {
+							label: __( 'Title', 'wp-livescore-la' ),
+							value: attributes.title || '',
+							onChange: function ( value ) { setAttributes( { title: value } ); }
+						} ),
+						el( SelectControl, {
+							label: __( 'Title heading type', 'wp-livescore-la' ),
+							value: attributes.titleTag || 'div',
+							options: titleTagOptions,
+							onChange: function ( value ) { setAttributes( { titleTag: value } ); }
 						} ),
 						el( TextControl, {
 							label: __( 'Prefix text', 'wp-livescore-la' ),

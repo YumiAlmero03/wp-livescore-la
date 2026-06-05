@@ -264,6 +264,7 @@ add_action( 'init', 'wp_livescore_la_register_league_meta' );
  */
 function wp_livescore_la_yoast_accessible_post_types( $post_types ) {
 	$post_types['league'] = 'league';
+	$post_types['prediction'] = 'prediction';
 	return $post_types;
 }
 add_filter( 'wpseo_accessible_post_types', 'wp_livescore_la_yoast_accessible_post_types' );
@@ -275,8 +276,10 @@ add_filter( 'wpseo_accessible_post_types', 'wp_livescore_la_yoast_accessible_pos
  * @return array
  */
 function wp_livescore_la_yoast_include_indexables( $post_types ) {
-	if ( ! in_array( 'league', $post_types, true ) ) {
-		$post_types[] = 'league';
+	foreach ( array( 'league', 'prediction' ) as $post_type ) {
+		if ( ! in_array( $post_type, $post_types, true ) ) {
+			$post_types[] = $post_type;
+		}
 	}
 
 	return $post_types;
@@ -293,6 +296,7 @@ function wp_livescore_la_yoast_enable_league_editor_features( $enabled ) {
 	return false === $enabled ? false : true;
 }
 add_filter( 'wpseo_enable_editor_features_league', 'wp_livescore_la_yoast_enable_league_editor_features' );
+add_filter( 'wpseo_enable_editor_features_prediction', 'wp_livescore_la_yoast_enable_league_editor_features' );
 
 /**
  * Keep Yoast League breadcrumbs on the current League archive URL.

@@ -11,6 +11,8 @@
 			"matchId": { "type": "number", "default": 0 },
 			"dataField": { "type": "string", "default": "_match_league_name" },
 			"icon": { "type": "string", "default": "" },
+			"title": { "type": "string", "default": "" },
+			"titleTag": { "type": "string", "default": "div" },
 			"prefix": { "type": "string", "default": "" },
 			"suffix": { "type": "string", "default": "" },
 			"textTransform": { "type": "string", "default": "" },

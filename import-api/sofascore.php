@@ -136,6 +136,18 @@ function wp_livescore_la_get_sofascore_headers() {
 }
 
 /**
+ * Normalize SofaScore names before they reach the shared importers.
+ *
+ * @param string $value Raw SofaScore text.
+ * @return string
+ */
+function wp_livescore_la_normalize_sofascore_import_text( $value ) {
+	$value = (string) $value;
+
+	return preg_replace( "/C(?:ôte|ote)\\s+d[’']?Ivoire/iu", 'Ivory Coast', $value );
+}
+
+/**
  * Import one or all configured SofaScore targets.
  *
  * @param string $selected_key Import target key, or all.
@@ -361,6 +373,435 @@ function wp_livescore_la_sofascore_has_next_page( $payload ) {
 }
 
 /**
+ * Get the custom import queue table name.
+ *
+ * @return string
+ */
+function wp_livescore_la_import_queue_table_name() {
+	global $wpdb;
+
+	return $wpdb->prefix . 'wp_livescore_la_import_queue';
+}
+
+/**
+ * Create or update the custom import queue table.
+ */
+function wp_livescore_la_install_import_queue_table() {
+	global $wpdb;
+
+	require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+	$table_name      = wp_livescore_la_import_queue_table_name();
+	$charset_collate = $wpdb->get_charset_collate();
+
+	$sql = "CREATE TABLE {$table_name} (
+		id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+		provider varchar(50) NOT NULL DEFAULT '',
+		job_type varchar(50) NOT NULL DEFAULT '',
+		team_id bigint(20) unsigned NOT NULL DEFAULT 0,
+		team_api_id varchar(100) NOT NULL DEFAULT '',
+		target_template text NOT NULL,
+		status varchar(20) NOT NULL DEFAULT 'pending',
+		attempts int(10) unsigned NOT NULL DEFAULT 0,
+		message text NULL,
+		created_count int(10) unsigned NOT NULL DEFAULT 0,
+		updated_count int(10) unsigned NOT NULL DEFAULT 0,
+		skipped_count int(10) unsigned NOT NULL DEFAULT 0,
+		fetched_count int(10) unsigned NOT NULL DEFAULT 0,
+		available_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+		started_at datetime NULL,
+		finished_at datetime NULL,
+		created_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+		updated_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+		PRIMARY KEY  (id),
+		KEY status_available (status, available_at),
+		KEY job_lookup (provider, job_type, team_id),
+		KEY team_api_id (team_api_id)
+	) {$charset_collate};";
+
+	dbDelta( $sql );
+	update_option( 'wp_livescore_la_import_queue_db_version', '1.0.0', false );
+}
+
+/**
+ * Ensure the import queue table exists after updates.
+ */
+function wp_livescore_la_maybe_install_import_queue_table() {
+	if ( '1.0.0' === get_option( 'wp_livescore_la_import_queue_db_version' ) ) {
+		return;
+	}
+
+	wp_livescore_la_install_import_queue_table();
+}
+add_action( 'init', 'wp_livescore_la_maybe_install_import_queue_table', 20 );
+
+/**
+ * Queue SofaScore player imports for Teams with Team API IDs.
+ *
+ * @param string $target_template Target containing {team_api_id}.
+ * @return array
+ */
+function wp_livescore_la_queue_sofascore_players_for_all_teams( $target_template ) {
+	$total = array(
+		'created' => 0,
+		'updated' => 0,
+		'skipped' => 0,
+		'fetched' => 0,
+		'queued'  => 0,
+	);
+
+	wp_livescore_la_maybe_install_import_queue_table();
+
+	$team_ids = get_posts(
+		array(
+			'post_type'      => 'team',
+			'post_status'    => 'any',
+			'fields'         => 'ids',
+			'posts_per_page' => -1,
+			'meta_query'     => array(
+				array(
+					'key'     => '_team_api_id',
+					'compare' => 'EXISTS',
+				),
+			),
+		)
+	);
+
+	if ( empty( $team_ids ) ) {
+		$total['skipped']++;
+		return $total;
+	}
+
+	foreach ( $team_ids as $team_id ) {
+		$team_api_id = get_post_meta( (int) $team_id, '_team_api_id', true );
+
+		if ( '' === $team_api_id ) {
+			$total['skipped']++;
+			continue;
+		}
+
+		$queued = wp_livescore_la_enqueue_sofascore_player_import_job( (int) $team_id, $team_api_id, $target_template );
+
+		if ( $queued ) {
+			$total['queued']++;
+		} else {
+			$total['skipped']++;
+		}
+	}
+
+	if ( $total['queued'] > 0 ) {
+		wp_livescore_la_schedule_import_queue_processing();
+	}
+
+	return $total;
+}
+
+/**
+ * Add one SofaScore player import job to the queue.
+ *
+ * @param int    $team_id         Team post ID.
+ * @param string $team_api_id     Team API ID.
+ * @param string $target_template Target containing {team_api_id}.
+ * @return bool
+ */
+function wp_livescore_la_enqueue_sofascore_player_import_job( $team_id, $team_api_id, $target_template ) {
+	global $wpdb;
+
+	$table_name      = wp_livescore_la_import_queue_table_name();
+	$team_api_id     = sanitize_text_field( (string) $team_api_id );
+	$target_template = sanitize_text_field( (string) $target_template );
+	$now             = current_time( 'mysql', true );
+
+	if ( $team_id <= 0 || '' === $team_api_id || '' === $target_template ) {
+		return false;
+	}
+
+	$existing_id = (int) $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT id FROM {$table_name} WHERE provider = %s AND job_type = %s AND team_id = %d AND team_api_id = %s AND target_template = %s AND status IN ('pending', 'processing') ORDER BY id DESC LIMIT 1",
+			'sofascore',
+			'players',
+			$team_id,
+			$team_api_id,
+			$target_template
+		)
+	);
+
+	if ( $existing_id > 0 ) {
+		$updated = $wpdb->update(
+			$table_name,
+			array(
+				'status'       => 'pending',
+				'available_at' => $now,
+				'updated_at'   => $now,
+			),
+			array( 'id' => $existing_id ),
+			array( '%s', '%s', '%s' ),
+			array( '%d' )
+		);
+
+		return false !== $updated;
+	}
+
+	$inserted = $wpdb->insert(
+		$table_name,
+		array(
+			'provider'        => 'sofascore',
+			'job_type'        => 'players',
+			'team_id'         => $team_id,
+			'team_api_id'     => $team_api_id,
+			'target_template' => $target_template,
+			'status'          => 'pending',
+			'available_at'    => $now,
+			'created_at'      => $now,
+			'updated_at'      => $now,
+		),
+		array( '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s' )
+	);
+
+	return false !== $inserted;
+}
+
+/**
+ * Check if pending import jobs remain.
+ *
+ * @return bool
+ */
+function wp_livescore_la_import_queue_has_pending_jobs() {
+	global $wpdb;
+
+	$table_name = wp_livescore_la_import_queue_table_name();
+	$count      = (int) $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT COUNT(*) FROM {$table_name} WHERE status = %s AND available_at <= %s",
+			'pending',
+			current_time( 'mysql', true )
+		)
+	);
+
+	return $count > 0;
+}
+
+/**
+ * Get queue counts grouped by status for admin display.
+ *
+ * @return array
+ */
+function wp_livescore_la_get_import_queue_counts() {
+	global $wpdb;
+
+	wp_livescore_la_maybe_install_import_queue_table();
+
+	$table_name = wp_livescore_la_import_queue_table_name();
+	$counts     = array(
+		'pending'    => 0,
+		'processing' => 0,
+		'done'       => 0,
+		'failed'     => 0,
+	);
+
+	$rows = $wpdb->get_results(
+		"SELECT status, COUNT(*) AS total FROM {$table_name} GROUP BY status",
+		ARRAY_A
+	);
+
+	foreach ( $rows as $row ) {
+		$status = isset( $row['status'] ) ? sanitize_key( $row['status'] ) : '';
+		if ( isset( $counts[ $status ] ) ) {
+			$counts[ $status ] = isset( $row['total'] ) ? absint( $row['total'] ) : 0;
+		}
+	}
+
+	return $counts;
+}
+
+/**
+ * Process queued SofaScore player imports.
+ *
+ * @param int $limit Batch size.
+ */
+function wp_livescore_la_process_sofascore_player_queue_batch( $limit = 5 ) {
+	global $wpdb;
+
+	$table_name = wp_livescore_la_import_queue_table_name();
+	$jobs       = $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT * FROM {$table_name} WHERE provider = %s AND job_type = %s AND status = %s AND available_at <= %s ORDER BY id ASC LIMIT %d",
+			'sofascore',
+			'players',
+			'pending',
+			current_time( 'mysql', true ),
+			max( 1, (int) $limit )
+		),
+		ARRAY_A
+	);
+
+	foreach ( $jobs as $job ) {
+		wp_livescore_la_process_sofascore_player_queue_job( $job );
+	}
+}
+
+/**
+ * Process one queued SofaScore player import job.
+ *
+ * @param array $job Queue row.
+ */
+function wp_livescore_la_process_sofascore_player_queue_job( $job ) {
+	global $wpdb;
+
+	$table_name  = wp_livescore_la_import_queue_table_name();
+	$job_id      = isset( $job['id'] ) ? (int) $job['id'] : 0;
+	$team_id     = isset( $job['team_id'] ) ? (int) $job['team_id'] : 0;
+	$team_api_id = isset( $job['team_api_id'] ) ? sanitize_text_field( $job['team_api_id'] ) : '';
+	$attempts    = isset( $job['attempts'] ) ? (int) $job['attempts'] + 1 : 1;
+	$now         = current_time( 'mysql', true );
+
+	if ( $job_id <= 0 ) {
+		return;
+	}
+
+	$wpdb->update(
+		$table_name,
+		array(
+			'status'     => 'processing',
+			'attempts'   => $attempts,
+			'started_at' => $now,
+			'updated_at' => $now,
+		),
+		array( 'id' => $job_id ),
+		array( '%s', '%d', '%s', '%s' ),
+		array( '%d' )
+	);
+
+	if ( $team_id <= 0 || 'team' !== get_post_type( $team_id ) || '' === $team_api_id ) {
+		wp_livescore_la_finish_import_queue_job( $job_id, 'failed', array(), __( 'Missing Team or Team API ID.', 'wp-livescore-la' ) );
+		return;
+	}
+
+	$target = str_replace( '{team_api_id}', rawurlencode( $team_api_id ), isset( $job['target_template'] ) ? $job['target_template'] : '' );
+	$url    = wp_livescore_la_resolve_sofascore_target_url( $target );
+
+	if ( '' === $url ) {
+		wp_livescore_la_finish_import_queue_job( $job_id, 'failed', array(), __( 'Invalid SofaScore squad URL.', 'wp-livescore-la' ) );
+		return;
+	}
+
+	$response = wp_remote_get(
+		$url,
+		array(
+			'timeout' => 20,
+			'headers' => wp_livescore_la_get_sofascore_headers(),
+		)
+	);
+
+	if ( is_wp_error( $response ) ) {
+		wp_livescore_la_retry_or_fail_import_queue_job( $job, $attempts, $response->get_error_message() );
+		return;
+	}
+
+	$status_code = (int) wp_remote_retrieve_response_code( $response );
+	$body        = wp_remote_retrieve_body( $response );
+	wp_livescore_la_store_last_updater_response( $url, $status_code, $body );
+
+	if ( $status_code < 200 || $status_code >= 300 ) {
+		wp_livescore_la_retry_or_fail_import_queue_job(
+			$job,
+			$attempts,
+			sprintf(
+				/* translators: %d: HTTP status code. */
+				__( 'SofaScore returned HTTP status %d.', 'wp-livescore-la' ),
+				$status_code
+			)
+		);
+		return;
+	}
+
+	$payload = json_decode( $body, true );
+	if ( JSON_ERROR_NONE !== json_last_error() || ! is_array( $payload ) ) {
+		wp_livescore_la_retry_or_fail_import_queue_job( $job, $attempts, __( 'SofaScore returned invalid JSON.', 'wp-livescore-la' ) );
+		return;
+	}
+
+	$records = wp_livescore_la_extract_sofascore_player_records( $payload );
+	$result  = empty( $records )
+		? array( 'created' => 0, 'updated' => 0, 'skipped' => 1 )
+		: wp_livescore_la_import_players( $records, $team_id, 'sofascore' );
+
+	wp_livescore_la_finish_import_queue_job( $job_id, 'done', $result, __( 'Player import complete.', 'wp-livescore-la' ) );
+}
+
+/**
+ * Retry a queue job or mark it failed after enough attempts.
+ *
+ * @param array  $job      Queue row.
+ * @param int    $attempts Current attempt count.
+ * @param string $message  Failure message.
+ */
+function wp_livescore_la_retry_or_fail_import_queue_job( $job, $attempts, $message ) {
+	global $wpdb;
+
+	$table_name = wp_livescore_la_import_queue_table_name();
+	$job_id     = isset( $job['id'] ) ? (int) $job['id'] : 0;
+	$attempts   = max( 1, (int) $attempts );
+	$now        = current_time( 'mysql', true );
+
+	if ( $job_id <= 0 ) {
+		return;
+	}
+
+	if ( $attempts >= 3 ) {
+		wp_livescore_la_finish_import_queue_job( $job_id, 'failed', array(), $message );
+		return;
+	}
+
+	$wpdb->update(
+		$table_name,
+		array(
+			'status'       => 'pending',
+			'attempts'     => $attempts,
+			'message'      => sanitize_text_field( $message ),
+			'available_at' => gmdate( 'Y-m-d H:i:s', time() + ( 5 * MINUTE_IN_SECONDS ) ),
+			'updated_at'   => $now,
+		),
+		array( 'id' => $job_id ),
+		array( '%s', '%d', '%s', '%s', '%s' ),
+		array( '%d' )
+	);
+}
+
+/**
+ * Mark a queue job complete or failed.
+ *
+ * @param int    $job_id  Queue ID.
+ * @param string $status  Final status.
+ * @param array  $result  Import counts.
+ * @param string $message Status message.
+ */
+function wp_livescore_la_finish_import_queue_job( $job_id, $status, $result = array(), $message = '' ) {
+	global $wpdb;
+
+	$table_name = wp_livescore_la_import_queue_table_name();
+	$now        = current_time( 'mysql', true );
+
+	$wpdb->update(
+		$table_name,
+		array(
+			'status'        => sanitize_key( $status ),
+			'message'       => sanitize_text_field( $message ),
+			'created_count' => isset( $result['created'] ) ? absint( $result['created'] ) : 0,
+			'updated_count' => isset( $result['updated'] ) ? absint( $result['updated'] ) : 0,
+			'skipped_count' => isset( $result['skipped'] ) ? absint( $result['skipped'] ) : 0,
+			'fetched_count' => 1,
+			'finished_at'   => $now,
+			'updated_at'    => $now,
+		),
+		array( 'id' => absint( $job_id ) ),
+		array( '%s', '%s', '%d', '%d', '%d', '%d', '%s', '%s' ),
+		array( '%d' )
+	);
+}
+
+/**
  * Import SofaScore squads for Teams with Team API IDs.
  *
  * @param string $target_template Target containing {team_api_id}.
@@ -392,464 +833,6 @@ function wp_livescore_la_import_sofascore_players_for_all_teams( $target_templat
 	if ( empty( $team_ids ) ) {
 		$total['skipped']++;
 		return $total;
-	}
-
-	/**
-	 * Get the custom import queue table name.
-	 *
-	 * @return string
-	 */
-	function wp_livescore_la_import_queue_table_name() {
-		global $wpdb;
-
-		return $wpdb->prefix . 'wp_livescore_la_import_queue';
-	}
-
-	/**
-	 * Create or update the custom import queue table.
-	 */
-	function wp_livescore_la_install_import_queue_table() {
-		global $wpdb;
-
-		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-
-		$table_name      = wp_livescore_la_import_queue_table_name();
-		$charset_collate = $wpdb->get_charset_collate();
-
-		$sql = "CREATE TABLE {$table_name} (
-			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-			provider varchar(50) NOT NULL DEFAULT '',
-			job_type varchar(50) NOT NULL DEFAULT '',
-			team_id bigint(20) unsigned NOT NULL DEFAULT 0,
-			team_api_id varchar(100) NOT NULL DEFAULT '',
-			target_template text NOT NULL,
-			status varchar(20) NOT NULL DEFAULT 'pending',
-			attempts int(10) unsigned NOT NULL DEFAULT 0,
-			message text NULL,
-			created_count int(10) unsigned NOT NULL DEFAULT 0,
-			updated_count int(10) unsigned NOT NULL DEFAULT 0,
-			skipped_count int(10) unsigned NOT NULL DEFAULT 0,
-			fetched_count int(10) unsigned NOT NULL DEFAULT 0,
-			available_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
-			started_at datetime NULL,
-			finished_at datetime NULL,
-			created_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
-			updated_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
-			PRIMARY KEY  (id),
-			KEY status_available (status, available_at),
-			KEY job_lookup (provider, job_type, team_id),
-			KEY team_api_id (team_api_id)
-		) {$charset_collate};";
-
-		dbDelta( $sql );
-		update_option( 'wp_livescore_la_import_queue_db_version', '1.0.0', false );
-	}
-
-	/**
-	 * Ensure the import queue table exists after updates.
-	 */
-	function wp_livescore_la_maybe_install_import_queue_table() {
-		if ( '1.0.0' === get_option( 'wp_livescore_la_import_queue_db_version' ) ) {
-			return;
-		}
-
-		wp_livescore_la_install_import_queue_table();
-	}
-	add_action( 'init', 'wp_livescore_la_maybe_install_import_queue_table', 20 );
-
-	/**
-	 * Queue SofaScore player imports for Teams with Team API IDs.
-	 *
-	 * @param string $target_template Target containing {team_api_id}.
-	 * @return array
-	 */
-	function wp_livescore_la_queue_sofascore_players_for_all_teams( $target_template ) {
-		$total = array(
-			'created' => 0,
-			'updated' => 0,
-			'skipped' => 0,
-			'fetched' => 0,
-			'queued'  => 0,
-		);
-
-		wp_livescore_la_maybe_install_import_queue_table();
-
-		$team_ids = get_posts(
-			array(
-				'post_type'      => 'team',
-				'post_status'    => 'any',
-				'fields'         => 'ids',
-				'posts_per_page' => -1,
-				'meta_query'     => array(
-					array(
-						'key'     => '_team_api_id',
-						'compare' => 'EXISTS',
-					),
-				),
-			)
-		);
-
-		if ( empty( $team_ids ) ) {
-			$total['skipped']++;
-			return $total;
-		}
-
-		foreach ( $team_ids as $team_id ) {
-			$team_api_id = get_post_meta( (int) $team_id, '_team_api_id', true );
-
-			if ( '' === $team_api_id ) {
-				$total['skipped']++;
-				continue;
-			}
-
-			$queued = wp_livescore_la_enqueue_sofascore_player_import_job( (int) $team_id, $team_api_id, $target_template );
-
-			if ( $queued ) {
-				$total['queued']++;
-			} else {
-				$total['skipped']++;
-			}
-		}
-
-		if ( $total['queued'] > 0 ) {
-			wp_livescore_la_schedule_import_queue_processing();
-		}
-
-		return $total;
-	}
-
-	/**
-	 * Add one SofaScore player import job to the queue.
-	 *
-	 * @param int    $team_id         Team post ID.
-	 * @param string $team_api_id     Team API ID.
-	 * @param string $target_template Target containing {team_api_id}.
-	 * @return bool
-	 */
-	function wp_livescore_la_enqueue_sofascore_player_import_job( $team_id, $team_api_id, $target_template ) {
-		global $wpdb;
-
-		$table_name      = wp_livescore_la_import_queue_table_name();
-		$team_api_id     = sanitize_text_field( (string) $team_api_id );
-		$target_template = sanitize_text_field( (string) $target_template );
-		$now             = current_time( 'mysql', true );
-
-		if ( $team_id <= 0 || '' === $team_api_id || '' === $target_template ) {
-			return false;
-		}
-
-		$existing_id = (int) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT id FROM {$table_name} WHERE provider = %s AND job_type = %s AND team_id = %d AND team_api_id = %s AND target_template = %s AND status IN ('pending', 'processing') ORDER BY id DESC LIMIT 1",
-				'sofascore',
-				'players',
-				$team_id,
-				$team_api_id,
-				$target_template
-			)
-		);
-
-		if ( $existing_id > 0 ) {
-			$updated = $wpdb->update(
-				$table_name,
-				array(
-					'status'       => 'pending',
-					'available_at' => $now,
-					'updated_at'   => $now,
-				),
-				array( 'id' => $existing_id ),
-				array( '%s', '%s', '%s' ),
-				array( '%d' )
-			);
-
-			return false !== $updated;
-		}
-
-		$inserted = $wpdb->insert(
-			$table_name,
-			array(
-				'provider'        => 'sofascore',
-				'job_type'        => 'players',
-				'team_id'         => $team_id,
-				'team_api_id'     => $team_api_id,
-				'target_template' => $target_template,
-				'status'          => 'pending',
-				'available_at'    => $now,
-				'created_at'      => $now,
-				'updated_at'      => $now,
-			),
-			array( '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s' )
-		);
-
-		return false !== $inserted;
-	}
-
-	/**
-	 * Schedule the queue processor to run soon.
-	 */
-	function wp_livescore_la_schedule_import_queue_processing() {
-		if ( ! wp_next_scheduled( 'wp_livescore_la_process_import_queue' ) ) {
-			wp_schedule_single_event( time() + 10, 'wp_livescore_la_process_import_queue' );
-		}
-	}
-
-	/**
-	 * Check if pending import jobs remain.
-	 *
-	 * @return bool
-	 */
-	function wp_livescore_la_import_queue_has_pending_jobs() {
-		global $wpdb;
-
-		$table_name = wp_livescore_la_import_queue_table_name();
-		$count      = (int) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$table_name} WHERE status = %s AND available_at <= %s",
-				'pending',
-				current_time( 'mysql', true )
-			)
-		);
-
-		return $count > 0;
-	}
-
-	/**
-	 * Get queue counts grouped by status for admin display.
-	 *
-	 * @return array
-	 */
-	function wp_livescore_la_get_import_queue_counts() {
-		global $wpdb;
-
-		wp_livescore_la_maybe_install_import_queue_table();
-
-		$table_name = wp_livescore_la_import_queue_table_name();
-		$counts     = array(
-			'pending'    => 0,
-			'processing' => 0,
-			'done'       => 0,
-			'failed'     => 0,
-		);
-
-		$rows = $wpdb->get_results(
-			"SELECT status, COUNT(*) AS total FROM {$table_name} GROUP BY status",
-			ARRAY_A
-		);
-
-		foreach ( $rows as $row ) {
-			$status = isset( $row['status'] ) ? sanitize_key( $row['status'] ) : '';
-			if ( isset( $counts[ $status ] ) ) {
-				$counts[ $status ] = isset( $row['total'] ) ? absint( $row['total'] ) : 0;
-			}
-		}
-
-		return $counts;
-	}
-
-	/**
-	 * Process a small batch of queued import jobs.
-	 */
-	function wp_livescore_la_process_import_queue() {
-		if ( get_transient( 'wp_livescore_la_import_queue_lock' ) ) {
-			wp_livescore_la_schedule_import_queue_processing();
-			return;
-		}
-
-		set_transient( 'wp_livescore_la_import_queue_lock', 1, 5 * MINUTE_IN_SECONDS );
-		wp_livescore_la_maybe_install_import_queue_table();
-		wp_livescore_la_process_sofascore_player_queue_batch( 5 );
-		delete_transient( 'wp_livescore_la_import_queue_lock' );
-
-		if ( wp_livescore_la_import_queue_has_pending_jobs() ) {
-			wp_livescore_la_schedule_import_queue_processing();
-		}
-	}
-	add_action( 'wp_livescore_la_process_import_queue', 'wp_livescore_la_process_import_queue' );
-
-	/**
-	 * Process queued SofaScore player imports.
-	 *
-	 * @param int $limit Batch size.
-	 */
-	function wp_livescore_la_process_sofascore_player_queue_batch( $limit = 5 ) {
-		global $wpdb;
-
-		$table_name = wp_livescore_la_import_queue_table_name();
-		$jobs       = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT * FROM {$table_name} WHERE provider = %s AND job_type = %s AND status = %s AND available_at <= %s ORDER BY id ASC LIMIT %d",
-				'sofascore',
-				'players',
-				'pending',
-				current_time( 'mysql', true ),
-				max( 1, (int) $limit )
-			),
-			ARRAY_A
-		);
-
-		foreach ( $jobs as $job ) {
-			wp_livescore_la_process_sofascore_player_queue_job( $job );
-		}
-	}
-
-	/**
-	 * Process one queued SofaScore player import job.
-	 *
-	 * @param array $job Queue row.
-	 */
-	function wp_livescore_la_process_sofascore_player_queue_job( $job ) {
-		global $wpdb;
-
-		$table_name = wp_livescore_la_import_queue_table_name();
-		$job_id     = isset( $job['id'] ) ? (int) $job['id'] : 0;
-		$team_id    = isset( $job['team_id'] ) ? (int) $job['team_id'] : 0;
-		$team_api_id = isset( $job['team_api_id'] ) ? sanitize_text_field( $job['team_api_id'] ) : '';
-		$attempts   = isset( $job['attempts'] ) ? (int) $job['attempts'] + 1 : 1;
-		$now        = current_time( 'mysql', true );
-
-		if ( $job_id <= 0 ) {
-			return;
-		}
-
-		$wpdb->update(
-			$table_name,
-			array(
-				'status'     => 'processing',
-				'attempts'   => $attempts,
-				'started_at' => $now,
-				'updated_at' => $now,
-			),
-			array( 'id' => $job_id ),
-			array( '%s', '%d', '%s', '%s' ),
-			array( '%d' )
-		);
-
-		if ( $team_id <= 0 || 'team' !== get_post_type( $team_id ) || '' === $team_api_id ) {
-			wp_livescore_la_finish_import_queue_job( $job_id, 'failed', array(), __( 'Missing Team or Team API ID.', 'wp-livescore-la' ) );
-			return;
-		}
-
-		$target = str_replace( '{team_api_id}', rawurlencode( $team_api_id ), isset( $job['target_template'] ) ? $job['target_template'] : '' );
-		$url    = wp_livescore_la_resolve_sofascore_target_url( $target );
-
-		if ( '' === $url ) {
-			wp_livescore_la_finish_import_queue_job( $job_id, 'failed', array(), __( 'Invalid SofaScore squad URL.', 'wp-livescore-la' ) );
-			return;
-		}
-
-		$response = wp_remote_get(
-			$url,
-			array(
-				'timeout' => 20,
-				'headers' => wp_livescore_la_get_sofascore_headers(),
-			)
-		);
-
-		if ( is_wp_error( $response ) ) {
-			wp_livescore_la_retry_or_fail_import_queue_job( $job, $attempts, $response->get_error_message() );
-			return;
-		}
-
-		$status_code = (int) wp_remote_retrieve_response_code( $response );
-		$body        = wp_remote_retrieve_body( $response );
-		wp_livescore_la_store_last_updater_response( $url, $status_code, $body );
-
-		if ( $status_code < 200 || $status_code >= 300 ) {
-			wp_livescore_la_retry_or_fail_import_queue_job(
-				$job,
-				$attempts,
-				sprintf(
-					/* translators: %d: HTTP status code. */
-					__( 'SofaScore returned HTTP status %d.', 'wp-livescore-la' ),
-					$status_code
-				)
-			);
-			return;
-		}
-
-		$payload = json_decode( $body, true );
-		if ( JSON_ERROR_NONE !== json_last_error() || ! is_array( $payload ) ) {
-			wp_livescore_la_retry_or_fail_import_queue_job( $job, $attempts, __( 'SofaScore returned invalid JSON.', 'wp-livescore-la' ) );
-			return;
-		}
-
-		$records = wp_livescore_la_extract_sofascore_player_records( $payload );
-		$result  = empty( $records )
-			? array( 'created' => 0, 'updated' => 0, 'skipped' => 1 )
-			: wp_livescore_la_import_players( $records, $team_id, 'sofascore' );
-
-		wp_livescore_la_finish_import_queue_job( $job_id, 'done', $result, __( 'Player import complete.', 'wp-livescore-la' ) );
-	}
-
-	/**
-	 * Retry a queue job or mark it failed after enough attempts.
-	 *
-	 * @param array  $job      Queue row.
-	 * @param int    $attempts Current attempt count.
-	 * @param string $message  Failure message.
-	 */
-	function wp_livescore_la_retry_or_fail_import_queue_job( $job, $attempts, $message ) {
-		global $wpdb;
-
-		$table_name = wp_livescore_la_import_queue_table_name();
-		$job_id     = isset( $job['id'] ) ? (int) $job['id'] : 0;
-		$attempts   = max( 1, (int) $attempts );
-		$now        = current_time( 'mysql', true );
-
-		if ( $job_id <= 0 ) {
-			return;
-		}
-
-		if ( $attempts >= 3 ) {
-			wp_livescore_la_finish_import_queue_job( $job_id, 'failed', array(), $message );
-			return;
-		}
-
-		$wpdb->update(
-			$table_name,
-			array(
-				'status'       => 'pending',
-				'attempts'     => $attempts,
-				'message'      => sanitize_text_field( $message ),
-				'available_at' => gmdate( 'Y-m-d H:i:s', time() + ( 5 * MINUTE_IN_SECONDS ) ),
-				'updated_at'   => $now,
-			),
-			array( 'id' => $job_id ),
-			array( '%s', '%d', '%s', '%s', '%s' ),
-			array( '%d' )
-		);
-	}
-
-	/**
-	 * Mark a queue job complete or failed.
-	 *
-	 * @param int    $job_id  Queue ID.
-	 * @param string $status  Final status.
-	 * @param array  $result  Import counts.
-	 * @param string $message Status message.
-	 */
-	function wp_livescore_la_finish_import_queue_job( $job_id, $status, $result = array(), $message = '' ) {
-		global $wpdb;
-
-		$table_name = wp_livescore_la_import_queue_table_name();
-		$now        = current_time( 'mysql', true );
-
-		$wpdb->update(
-			$table_name,
-			array(
-				'status'        => sanitize_key( $status ),
-				'message'       => sanitize_text_field( $message ),
-				'created_count' => isset( $result['created'] ) ? absint( $result['created'] ) : 0,
-				'updated_count' => isset( $result['updated'] ) ? absint( $result['updated'] ) : 0,
-				'skipped_count' => isset( $result['skipped'] ) ? absint( $result['skipped'] ) : 0,
-				'fetched_count' => 1,
-				'finished_at'   => $now,
-				'updated_at'    => $now,
-			),
-			array( 'id' => absint( $job_id ) ),
-			array( '%s', '%s', '%d', '%d', '%d', '%d', '%s', '%s' ),
-			array( '%d' )
-		);
 	}
 
 	foreach ( $team_ids as $team_id ) {
@@ -951,10 +934,10 @@ function wp_livescore_la_extract_sofascore_player_records( $payload ) {
 		$country = isset( $player['country'] ) && is_array( $player['country'] ) ? $player['country'] : array();
 
 		$records[] = array(
-			'name'           => sanitize_text_field( $player['name'] ),
+			'name'           => sanitize_text_field( wp_livescore_la_normalize_sofascore_import_text( $player['name'] ) ),
 			'jersey'         => isset( $player['jerseyNumber'] ) ? sanitize_text_field( (string) $player['jerseyNumber'] ) : '',
 			'api_id'         => isset( $player['id'] ) ? sanitize_text_field( (string) $player['id'] ) : '',
-			'country'        => isset( $country['name'] ) ? sanitize_text_field( $country['name'] ) : '',
+			'country'        => isset( $country['name'] ) ? sanitize_text_field( wp_livescore_la_normalize_sofascore_import_text( $country['name'] ) ) : '',
 			'birthday'       => isset( $player['dateOfBirth'] ) ? wp_livescore_la_normalize_sofascore_player_birthday( $player['dateOfBirth'] ) : '',
 			'preferred_foot' => isset( $player['preferredFoot'] ) ? sanitize_text_field( (string) $player['preferredFoot'] ) : '',
 			'height'         => isset( $player['height'] ) ? sanitize_text_field( (string) $player['height'] ) : '',
@@ -1078,8 +1061,13 @@ function wp_livescore_la_normalize_sofascore_match_record( $item ) {
 	$venue      = isset( $item['venue'] ) && is_array( $item['venue'] ) ? $item['venue'] : array();
 	$group      = isset( $item['group'] ) && is_array( $item['group'] ) ? $item['group'] : array();
 
-	$home_name = isset( $home_team['name'] ) ? sanitize_text_field( $home_team['name'] ) : '';
-	$away_name = isset( $away_team['name'] ) ? sanitize_text_field( $away_team['name'] ) : '';
+	$home_name   = isset( $home_team['name'] ) ? sanitize_text_field( wp_livescore_la_normalize_sofascore_import_text( $home_team['name'] ) ) : '';
+	$away_name   = isset( $away_team['name'] ) ? sanitize_text_field( wp_livescore_la_normalize_sofascore_import_text( $away_team['name'] ) ) : '';
+	$league_name = isset( $tournament['name'] ) ? sanitize_text_field( wp_livescore_la_normalize_sofascore_import_text( $tournament['name'] ) ) : '';
+
+	if ( wp_livescore_la_sofascore_is_fifa_world_cup( $tournament ) ) {
+		$league_name = 'Fifa world cup';
+	}
 
 	if ( '' === $home_name || '' === $away_name ) {
 		return array();
@@ -1112,22 +1100,25 @@ function wp_livescore_la_normalize_sofascore_match_record( $item ) {
 		'sportscore_slug'    => $sportscore_slug,
 		'strEvent'           => $home_name . ' vs ' . $away_name,
 		'strSport'           => isset( $sport['name'] ) ? sanitize_text_field( $sport['name'] ) : '',
-		'strCountry'         => ! $skip_country && isset( $category['name'] ) ? sanitize_text_field( $category['name'] ) : '',
+		'strCountry'         => ! $skip_country && isset( $category['name'] ) ? sanitize_text_field( wp_livescore_la_normalize_sofascore_import_text( $category['name'] ) ) : '',
 		'strCountryCode'     => ! $skip_country && isset( $category['alpha2'] ) ? sanitize_text_field( $category['alpha2'] ) : '',
 		'skipMatchCountry'   => $skip_country ? '1' : '',
 		'idLeague'           => isset( $tournament['uniqueTournament']['id'] ) ? sanitize_text_field( (string) $tournament['uniqueTournament']['id'] ) : ( isset( $tournament['id'] ) ? sanitize_text_field( (string) $tournament['id'] ) : '' ),
-		'strLeague'          => isset( $tournament['name'] ) ? sanitize_text_field( $tournament['name'] ) : '',
+		'strLeague'          => $league_name,
 		'strSeason'          => wp_livescore_la_sofascore_season_name( $season ),
 		'strHomeTeam'        => $home_name,
 		'idHomeTeam'         => isset( $home_team['id'] ) ? sanitize_text_field( (string) $home_team['id'] ) : '',
+		'strHomeTeamShort'   => isset( $home_team['nameCode'] ) ? sanitize_text_field( (string) $home_team['nameCode'] ) : '',
 		'strAwayTeam'        => $away_name,
 		'idAwayTeam'         => isset( $away_team['id'] ) ? sanitize_text_field( (string) $away_team['id'] ) : '',
+		'strAwayTeamShort'   => isset( $away_team['nameCode'] ) ? sanitize_text_field( (string) $away_team['nameCode'] ) : '',
 		'dateEvent'          => $date,
 		'strTime'            => $time,
 		'strTimestamp'       => $datetime,
 		'timezone'           => 'UTC',
 		'groupName'          => wp_livescore_la_sofascore_match_group_name( $item, $group ),
-		'strVenue'           => isset( $venue['name'] ) ? sanitize_text_field( $venue['name'] ) : '',
+		'strVenue'           => wp_livescore_la_sofascore_match_venue_name( $venue ),
+		'image_url'          => wp_livescore_la_sofascore_image_url( $item ),
 		'intHomeScore'       => isset( $home_score['current'] ) ? sanitize_text_field( (string) $home_score['current'] ) : '',
 		'intAwayScore'       => isset( $away_score['current'] ) ? sanitize_text_field( (string) $away_score['current'] ) : '',
 		'strStatus'          => wp_livescore_la_normalize_sofascore_match_status( $status ),
@@ -1162,6 +1153,10 @@ function wp_livescore_la_sofascore_team_name_has_number( $name ) {
  * @return string
  */
 function wp_livescore_la_sofascore_match_group_name( $item, $group ) {
+	if ( isset( $item['tournament'] ) && is_array( $item['tournament'] ) && ! empty( $item['tournament']['groupName'] ) ) {
+		return sanitize_text_field( (string) $item['tournament']['groupName'] );
+	}
+
 	foreach ( array( 'groupName', 'name' ) as $key ) {
 		if ( isset( $group[ $key ] ) && '' !== (string) $group[ $key ] ) {
 			return sanitize_text_field( (string) $group[ $key ] );
@@ -1171,6 +1166,47 @@ function wp_livescore_la_sofascore_match_group_name( $item, $group ) {
 	foreach ( array( 'groupName', 'strGroup' ) as $key ) {
 		if ( isset( $item[ $key ] ) && '' !== (string) $item[ $key ] ) {
 			return sanitize_text_field( (string) $item[ $key ] );
+		}
+	}
+
+	return '';
+}
+
+/**
+ * Format SofaScore venue name with city.
+ *
+ * @param array $venue Venue data.
+ * @return string
+ */
+function wp_livescore_la_sofascore_match_venue_name( $venue ) {
+	if ( ! is_array( $venue ) ) {
+		return '';
+	}
+
+	$name = isset( $venue['name'] ) ? sanitize_text_field( (string) $venue['name'] ) : '';
+	$city = isset( $venue['city'] ) && is_array( $venue['city'] ) && ! empty( $venue['city']['name'] ) ? sanitize_text_field( (string) $venue['city']['name'] ) : '';
+
+	return trim( implode( ', ', array_filter( array( $name, $city ) ) ) );
+}
+
+/**
+ * Get a SofaScore image URL from common response fields.
+ *
+ * @param array $item SofaScore item.
+ * @return string
+ */
+function wp_livescore_la_sofascore_image_url( $item ) {
+	foreach ( array( 'image', 'imageUrl', 'thumbnail', 'thumbnailUrl', 'logo', 'logoUrl' ) as $key ) {
+		if ( ! empty( $item[ $key ] ) && is_scalar( $item[ $key ] ) ) {
+			return esc_url_raw( (string) $item[ $key ] );
+		}
+	}
+
+	if ( ! empty( $item['tournament'] ) && is_array( $item['tournament'] ) ) {
+		foreach ( array( 'image', 'imageUrl', 'logo', 'logoUrl' ) as $key ) {
+			if ( ! empty( $item['tournament'][ $key ] ) && is_scalar( $item['tournament'][ $key ] ) ) {
+				return esc_url_raw( (string) $item['tournament'][ $key ] );
+			}
 		}
 	}
 
@@ -1536,7 +1572,7 @@ function wp_livescore_la_find_sofascore_items( $value ) {
  * @return array
  */
 function wp_livescore_la_normalize_sofascore_league_record( $item ) {
-	$name = isset( $item['name'] ) ? sanitize_text_field( $item['name'] ) : '';
+	$name = isset( $item['name'] ) ? sanitize_text_field( wp_livescore_la_normalize_sofascore_import_text( $item['name'] ) ) : '';
 	$id   = isset( $item['id'] ) ? sanitize_text_field( (string) $item['id'] ) : '';
 
 	if ( '' === $name || '' === $id ) {
@@ -1550,13 +1586,62 @@ function wp_livescore_la_normalize_sofascore_league_record( $item ) {
 		$sport = $category['sport'];
 	}
 
+	if ( wp_livescore_la_sofascore_is_fifa_world_cup( $item ) ) {
+		$name = 'Fifa world cup';
+	}
+
+	$season = isset( $item['season'] ) && is_array( $item['season'] ) ? wp_livescore_la_sofascore_season_name( $item['season'] ) : '';
+
 	return array(
 		'name'         => $name,
 		'api_id'       => $id,
 		'sport'        => isset( $sport['name'] ) ? sanitize_text_field( $sport['name'] ) : '',
-		'country'      => isset( $category['name'] ) ? sanitize_text_field( $category['name'] ) : '',
+		'country'      => isset( $category['name'] ) ? sanitize_text_field( wp_livescore_la_normalize_sofascore_import_text( $category['name'] ) ) : '',
 		'country_code' => isset( $category['alpha2'] ) ? sanitize_text_field( $category['alpha2'] ) : '',
+		'strCurrentSeason' => $season,
 		'slug'         => isset( $item['slug'] ) ? sanitize_title( $item['slug'] ) : '',
+		'strBadge'     => wp_livescore_la_sofascore_image_url( $item ),
 		'api_source'   => 'sofascore',
 	);
+}
+
+/**
+ * Detect FIFA World Cup tournament-like SofaScore records.
+ *
+ * @param array $item SofaScore item.
+ * @return bool
+ */
+function wp_livescore_la_sofascore_is_fifa_world_cup( $item ) {
+	if ( ! is_array( $item ) ) {
+		return false;
+	}
+
+	$values = array();
+	foreach ( array( 'name', 'slug', 'groupName' ) as $key ) {
+		if ( ! empty( $item[ $key ] ) && is_scalar( $item[ $key ] ) ) {
+			$values[] = (string) $item[ $key ];
+		}
+	}
+
+	if ( ! empty( $item['uniqueTournament'] ) && is_array( $item['uniqueTournament'] ) ) {
+		foreach ( array( 'name', 'slug' ) as $key ) {
+			if ( ! empty( $item['uniqueTournament'][ $key ] ) && is_scalar( $item['uniqueTournament'][ $key ] ) ) {
+				$values[] = (string) $item['uniqueTournament'][ $key ];
+			}
+		}
+
+		if ( isset( $item['uniqueTournament']['id'] ) && 16 === (int) $item['uniqueTournament']['id'] ) {
+			return true;
+		}
+	}
+
+	if ( isset( $item['id'] ) && 16 === (int) $item['id'] ) {
+		return true;
+	}
+
+	$normalized = function_exists( 'wp_livescore_la_normalize_import_title_key' )
+		? wp_livescore_la_normalize_import_title_key( implode( ' ', $values ) )
+		: sanitize_title( implode( ' ', $values ) );
+
+	return false !== strpos( $normalized, 'fifaworldcup' ) || false !== strpos( $normalized, 'worldcup' );
 }

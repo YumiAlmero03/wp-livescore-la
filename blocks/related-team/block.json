@@ -11,6 +11,7 @@
 			"matchId": { "type": "number", "default": 0 },
 			"teamSide": { "type": "string", "default": "home" },
 			"showImage": { "type": "boolean", "default": true },
+			"showTitle": { "type": "boolean", "default": true },
 			"imageSize": { "type": "number", "default": 5 },
 			"imagePosition": { "type": "string", "default": "top" },
 			"useShortName": { "type": "boolean", "default": false },

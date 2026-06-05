@@ -9,10 +9,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+global $wp_query;
+
 $team_archive_url = get_post_type_archive_link( 'team' );
 $has_filter       = ( isset( $_GET['team_sport'] ) && '' !== $_GET['team_sport'] )
 	|| ( isset( $_GET['team_league'] ) && '' !== $_GET['team_league'] )
 	|| ( isset( $_GET['team_country'] ) && '' !== $_GET['team_country'] );
+$load_more_query_vars = function_exists( 'wp_livescore_la_get_team_archive_load_more_query_vars' )
+	? wp_livescore_la_get_team_archive_load_more_query_vars( $wp_query )
+	: array();
 
 get_header();
 ?>
@@ -37,48 +42,28 @@ get_header();
 		<div class="wp-livescore-la-team-archive__grid">
 			<?php while ( have_posts() ) : ?>
 				<?php the_post(); ?>
-				<?php
-				$team_id   = get_the_ID();
-				$team_meta = array_filter(
-					array(
-						get_post_meta( $team_id, '_team_sport_name', true ),
-						get_post_meta( $team_id, '_team_country_name', true ),
-						get_post_meta( $team_id, '_team_status', true ),
-					),
-					function ( $value ) {
-						return '' !== trim( (string) $value );
-					}
-				);
-				?>
-				<article <?php post_class( 'wp-livescore-la-team-archive__card' ); ?>>
-					<a class="wp-livescore-la-team-archive__image-link" href="<?php the_permalink(); ?>">
-						<?php if ( has_post_thumbnail() ) : ?>
-							<?php the_post_thumbnail( 'medium_large', array( 'class' => 'wp-livescore-la-team-archive__image' ) ); ?>
-						<?php elseif ( function_exists( 'wp_livescore_la_get_image_placeholder' ) ) : ?>
-							<?php echo wp_kses_post( wp_livescore_la_get_image_placeholder( 'wp-livescore-la-team-archive__image wp-livescore-la-team-archive__placeholder', get_the_title() ) ); ?>
-						<?php endif; ?>
-					</a>
-
-					<div class="wp-livescore-la-team-archive__content">
-						<h2 class="wp-livescore-la-team-archive__title">
-							<a href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
-						</h2>
-
-						<?php if ( ! empty( $team_meta ) ) : ?>
-							<p class="wp-livescore-la-team-archive__meta"><?php echo esc_html( implode( ' | ', $team_meta ) ); ?></p>
-						<?php endif; ?>
-
-						<?php if ( has_excerpt() ) : ?>
-							<div class="wp-livescore-la-team-archive__excerpt">
-								<?php the_excerpt(); ?>
-							</div>
-						<?php endif; ?>
-					</div>
-				</article>
+				<?php echo function_exists( 'wp_livescore_la_render_team_archive_card' ) ? wp_livescore_la_render_team_archive_card() : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 			<?php endwhile; ?>
 		</div>
 
-		<?php function_exists( 'wp_livescore_la_the_archive_pagination' ) ? wp_livescore_la_the_archive_pagination() : the_posts_pagination(); ?>
+		<?php if ( $wp_query instanceof WP_Query && $wp_query->max_num_pages > 1 ) : ?>
+			<div class="wp-livescore-la-team-archive__load-more-wrap">
+				<button
+					type="button"
+					class="button wp-livescore-la-team-archive__load-more"
+					data-ajax-url="<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>"
+					data-nonce="<?php echo esc_attr( wp_create_nonce( 'wp_livescore_la_load_more_teams' ) ); ?>"
+					data-next-page="2"
+					data-max-pages="<?php echo esc_attr( (string) $wp_query->max_num_pages ); ?>"
+					data-query-vars="<?php echo esc_attr( wp_json_encode( $load_more_query_vars ) ); ?>"
+				>
+					<?php esc_html_e( 'View More', 'wp-livescore-la' ); ?>
+				</button>
+			</div>
+			<noscript>
+				<?php function_exists( 'wp_livescore_la_the_archive_pagination' ) ? wp_livescore_la_the_archive_pagination() : the_posts_pagination(); ?>
+			</noscript>
+		<?php endif; ?>
 	<?php else : ?>
 		<section class="wp-livescore-la-team-archive__empty">
 			<h2><?php esc_html_e( 'No teams found', 'wp-livescore-la' ); ?></h2>

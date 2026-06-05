@@ -12,6 +12,7 @@
 		edit: function ( props ) {
 			const attributes = props.attributes;
 			const setAttributes = props.setAttributes;
+			const showTeams = !! attributes.showTeams;
 
 			return el(
 				'div',
@@ -27,7 +28,11 @@
 							type: 'number',
 							value: attributes.leagueId || '',
 							onChange: function ( value ) { setAttributes( { leagueId: parseInt( value, 10 ) || 0 } ); }
-						} ),
+						} )
+					),
+					el(
+						PanelBody,
+						{ title: __( 'Display', 'wp-livescore-la' ), initialOpen: true },
 						el( ToggleControl, {
 							label: __( 'Show all matches', 'wp-livescore-la' ),
 							checked: !! attributes.showAll,
@@ -77,6 +82,16 @@
 							label: __( 'Past label', 'wp-livescore-la' ),
 							value: attributes.pastLabel || '',
 							onChange: function ( value ) { setAttributes( { pastLabel: value } ); }
+						} ) : null,
+						el( ToggleControl, {
+							label: __( 'Show team count', 'wp-livescore-la' ),
+							checked: showTeams,
+							onChange: function ( value ) { setAttributes( { showTeams: value } ); }
+						} ),
+						showTeams ? el( TextControl, {
+							label: __( 'Team count label', 'wp-livescore-la' ),
+							value: attributes.teamsLabel || '',
+							onChange: function ( value ) { setAttributes( { teamsLabel: value } ); }
 						} ) : null
 					)
 				),

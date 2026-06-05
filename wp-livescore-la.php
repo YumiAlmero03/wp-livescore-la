@@ -188,10 +188,13 @@ require_once WP_LIVESCORE_LA_DIR . 'posts/country.php';
 require_once WP_LIVESCORE_LA_DIR . 'posts/league.php';
 require_once WP_LIVESCORE_LA_DIR . 'posts/team.php';
 require_once WP_LIVESCORE_LA_DIR . 'posts/player.php';
+require_once WP_LIVESCORE_LA_DIR . 'posts/prediction.php';
 require_once WP_LIVESCORE_LA_DIR . 'posts/match.php';
 require_once WP_LIVESCORE_LA_DIR . 'posts/importer.php';
 require_once WP_LIVESCORE_LA_DIR . 'import-api/sportsdb.php';
 require_once WP_LIVESCORE_LA_DIR . 'import-api/sofascore.php';
+require_once WP_LIVESCORE_LA_DIR . 'import-api/kadario.php';
+require_once WP_LIVESCORE_LA_DIR . 'Cron/import-queue.php';
 require_once WP_LIVESCORE_LA_DIR . 'admin/settings.php';
 require_once WP_LIVESCORE_LA_DIR . 'shortcodes/categories.php';
 
@@ -424,7 +427,7 @@ function wp_livescore_la_get_astra_site_builder_template( $layout_title ) {
  */
 function wp_livescore_la_is_forced_astra_archive_layout() {
 	return ! empty( $GLOBALS['wp_livescore_la_astra_site_builder_layout_id'] )
-		&& ( is_post_type_archive( 'league' ) || is_post_type_archive( 'match' ) || is_post_type_archive( 'team' ) || is_post_type_archive( 'player' ) );
+		&& ( is_post_type_archive( 'league' ) || is_post_type_archive( 'match' ) || is_post_type_archive( 'team' ) || is_post_type_archive( 'player' ) || is_post_type_archive( 'prediction' ) );
 }
 
 /**
@@ -475,7 +478,7 @@ function wp_livescore_la_buffer_astra_archive_container() {
 		return;
 	}
 
-	if ( is_post_type_archive( 'league' ) || is_post_type_archive( 'match' ) || is_post_type_archive( 'team' ) || is_post_type_archive( 'player' ) ) {
+	if ( is_post_type_archive( 'league' ) || is_post_type_archive( 'match' ) || is_post_type_archive( 'team' ) || is_post_type_archive( 'player' ) || is_post_type_archive( 'prediction' ) ) {
 		ob_start( 'wp_livescore_la_replace_astra_content_container' );
 	}
 }
@@ -535,17 +538,240 @@ function wp_livescore_la_prepare_astra_site_builder_layout( $layout_id ) {
 }
 
 /**
+ * Normalize Related Blogs block attributes.
+ *
+ * @param array<string, mixed> $attributes Raw block attributes.
+ * @return array<string, mixed>
+ */
+function wp_livescore_la_normalize_related_blog_attributes( $attributes ) {
+	$attributes = is_array( $attributes ) ? $attributes : array();
+
+	return array(
+		'title'              => isset( $attributes['title'] ) ? sanitize_text_field( $attributes['title'] ) : __( 'Related Blogs', 'wp-livescore-la' ),
+		'postsPerPage'       => isset( $attributes['postsPerPage'] ) ? max( 1, min( 24, (int) $attributes['postsPerPage'] ) ) : 6,
+		'columns'            => isset( $attributes['columns'] ) ? max( 1, min( 4, (int) $attributes['columns'] ) ) : 3,
+		'showFeaturedImage'  => ! array_key_exists( 'showFeaturedImage', $attributes ) || ! empty( $attributes['showFeaturedImage'] ),
+		'showExcerpt'        => ! array_key_exists( 'showExcerpt', $attributes ) || ! empty( $attributes['showExcerpt'] ),
+		'showDate'           => ! array_key_exists( 'showDate', $attributes ) || ! empty( $attributes['showDate'] ),
+		'showAuthor'         => ! empty( $attributes['showAuthor'] ),
+		'showReadMore'       => ! array_key_exists( 'showReadMore', $attributes ) || ! empty( $attributes['showReadMore'] ),
+		'readMoreText'       => isset( $attributes['readMoreText'] ) ? sanitize_text_field( $attributes['readMoreText'] ) : __( 'Read More', 'wp-livescore-la' ),
+		'showLoadMore'       => ! array_key_exists( 'showLoadMore', $attributes ) || ! empty( $attributes['showLoadMore'] ),
+		'loadMoreText'       => isset( $attributes['loadMoreText'] ) ? sanitize_text_field( $attributes['loadMoreText'] ) : __( 'View More', 'wp-livescore-la' ),
+		'emptyMessage'       => isset( $attributes['emptyMessage'] ) ? sanitize_text_field( $attributes['emptyMessage'] ) : __( 'No related blog posts found.', 'wp-livescore-la' ),
+	);
+}
+
+/**
+ * Get the linked blog tag ID for a Livescore post.
+ *
+ * @param int $related_post_id Current related entity post ID.
+ * @return int
+ */
+function wp_livescore_la_get_related_blog_tag_id( $related_post_id ) {
+	$related_post_id = absint( $related_post_id );
+	$related_type    = $related_post_id > 0 ? get_post_type( $related_post_id ) : '';
+
+	if ( ! $related_post_id || ! in_array( $related_type, array( 'league', 'team', 'match', 'sport', 'country' ), true ) ) {
+		return 0;
+	}
+
+	$related_slug = sanitize_title( get_post_field( 'post_name', $related_post_id ) );
+	$tag          = '' !== $related_slug ? get_term_by( 'slug', $related_slug, 'post_tag' ) : false;
+	$tag_id       = $tag instanceof WP_Term ? (int) $tag->term_id : 0;
+
+	if ( $tag_id <= 0 && 'league' === $related_type ) {
+		$tag_id = get_league_linked_tag_id( $related_post_id );
+
+		if ( $tag_id <= 0 ) {
+			$tag_id = sync_league_to_post_tag( $related_post_id );
+		}
+	}
+
+	if ( $tag_id <= 0 && 'team' === $related_type ) {
+		$tag_id = get_team_linked_tag_id( $related_post_id );
+
+		if ( $tag_id <= 0 ) {
+			$tag_id = sync_team_to_post_tag( $related_post_id );
+		}
+	}
+
+	if ( $tag_id <= 0 && 'match' === $related_type ) {
+		$tag_id = get_match_linked_tag_id( $related_post_id );
+
+		if ( $tag_id <= 0 ) {
+			$tag_id = sync_match_to_post_tag( $related_post_id );
+		}
+	}
+
+	return max( 0, (int) $tag_id );
+}
+
+/**
+ * Build Related Blogs query args.
+ *
+ * @param int                  $tag_id     Related post tag ID.
+ * @param array<string, mixed> $attributes Normalized block attributes.
+ * @param int                  $page       Query page.
+ * @return array<string, mixed>
+ */
+function wp_livescore_la_get_related_blog_query_args( $tag_id, $attributes, $page = 1 ) {
+	return array(
+		'post_type'           => 'post',
+		'post_status'         => 'publish',
+		'posts_per_page'      => max( 1, min( 24, (int) $attributes['postsPerPage'] ) ),
+		'paged'               => max( 1, absint( $page ) ),
+		'ignore_sticky_posts' => true,
+		'tag_id'              => absint( $tag_id ),
+	);
+}
+
+/**
+ * Build random fallback blog query args.
+ *
+ * @param array<string, mixed> $attributes Normalized block attributes.
+ * @return array<string, mixed>
+ */
+function wp_livescore_la_get_random_blog_query_args( $attributes ) {
+	return array(
+		'post_type'           => 'post',
+		'post_status'         => 'publish',
+		'posts_per_page'      => max( 1, min( 24, (int) $attributes['postsPerPage'] ) ),
+		'ignore_sticky_posts' => true,
+		'orderby'             => 'rand',
+	);
+}
+
+/**
+ * Render one Related Blogs card.
+ *
+ * @param array<string, mixed> $attributes Normalized block attributes.
+ * @return string
+ */
+function wp_livescore_la_render_related_blog_card( $attributes ) {
+	ob_start();
+	?>
+	<article class="wp-livescore-la-related-league-blogs__card">
+		<?php if ( $attributes['showFeaturedImage'] ) : ?>
+			<a class="wp-livescore-la-related-league-blogs__image-link" href="<?php echo esc_url( get_permalink() ); ?>" aria-label="<?php echo esc_attr( get_the_title() ); ?>">
+				<?php
+				if ( has_post_thumbnail() ) {
+					the_post_thumbnail( 'medium_large', array( 'class' => 'wp-livescore-la-related-league-blogs__image' ) );
+				} elseif ( function_exists( 'wp_livescore_la_get_image_placeholder' ) ) {
+					echo wp_kses_post( wp_livescore_la_get_image_placeholder( 'wp-livescore-la-related-league-blogs__image wp-livescore-la-related-league-blogs__placeholder', get_the_title() ) );
+				}
+				?>
+			</a>
+		<?php endif; ?>
+
+		<div class="wp-livescore-la-related-league-blogs__content">
+			<h3 class="wp-livescore-la-related-league-blogs__post-title">
+				<a href="<?php echo esc_url( get_permalink() ); ?>"><?php echo esc_html( get_the_title() ); ?></a>
+			</h3>
+
+			<?php if ( $attributes['showDate'] || $attributes['showAuthor'] ) : ?>
+				<div class="wp-livescore-la-related-league-blogs__meta">
+					<?php if ( $attributes['showDate'] ) : ?>
+						<time datetime="<?php echo esc_attr( get_the_date( DATE_W3C ) ); ?>"><?php echo esc_html( get_the_date() ); ?></time>
+					<?php endif; ?>
+					<?php if ( $attributes['showAuthor'] ) : ?>
+						<span><?php echo esc_html( get_the_author() ); ?></span>
+					<?php endif; ?>
+				</div>
+			<?php endif; ?>
+
+			<?php if ( $attributes['showExcerpt'] ) : ?>
+				<div class="wp-livescore-la-related-league-blogs__excerpt">
+					<?php echo wp_kses_post( wp_trim_words( get_the_excerpt(), 24 ) ); ?>
+				</div>
+			<?php endif; ?>
+
+			<?php if ( $attributes['showReadMore'] && '' !== $attributes['readMoreText'] ) : ?>
+				<a class="wp-livescore-la-related-league-blogs__read-more" href="<?php echo esc_url( get_permalink() ); ?>">
+					<?php echo esc_html( $attributes['readMoreText'] ); ?>
+				</a>
+			<?php endif; ?>
+		</div>
+	</article>
+	<?php
+
+	return (string) ob_get_clean();
+}
+
+/**
+ * Render Related Blogs cards from a WP_Query.
+ *
+ * @param WP_Query             $query      Query object.
+ * @param array<string, mixed> $attributes Normalized block attributes.
+ * @return string
+ */
+function wp_livescore_la_render_related_blog_cards( $query, $attributes ) {
+	if ( ! $query instanceof WP_Query || ! $query->have_posts() ) {
+		return '';
+	}
+
+	ob_start();
+
+	while ( $query->have_posts() ) {
+		$query->the_post();
+		echo wp_livescore_la_render_related_blog_card( $attributes ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	}
+
+	wp_reset_postdata();
+
+	return (string) ob_get_clean();
+}
+
+/**
+ * AJAX handler for Related Blogs "View More".
+ */
+function wp_livescore_la_load_related_blogs() {
+	check_ajax_referer( 'wp_livescore_la_related_blogs', 'nonce' );
+
+	$related_post_id = isset( $_POST['post_id'] ) ? absint( $_POST['post_id'] ) : 0;
+	$page            = isset( $_POST['page'] ) ? absint( $_POST['page'] ) : 1;
+	$raw_attributes  = isset( $_POST['attributes'] ) ? wp_unslash( $_POST['attributes'] ) : '{}';
+	$attributes      = json_decode( (string) $raw_attributes, true );
+	$attributes      = wp_livescore_la_normalize_related_blog_attributes( is_array( $attributes ) ? $attributes : array() );
+	$tag_id          = wp_livescore_la_get_related_blog_tag_id( $related_post_id );
+
+	if ( $tag_id <= 0 || $page <= 1 ) {
+		wp_send_json_error();
+	}
+
+	$query = new WP_Query( wp_livescore_la_get_related_blog_query_args( $tag_id, $attributes, $page ) );
+	$html  = wp_livescore_la_render_related_blog_cards( $query, $attributes );
+
+	if ( '' === $html ) {
+		wp_send_json_error();
+	}
+
+	wp_send_json_success(
+		array(
+			'html'    => $html,
+			'hasMore' => $page < (int) $query->max_num_pages,
+		)
+	);
+}
+add_action( 'wp_ajax_wp_livescore_la_load_related_blogs', 'wp_livescore_la_load_related_blogs' );
+add_action( 'wp_ajax_nopriv_wp_livescore_la_load_related_blogs', 'wp_livescore_la_load_related_blogs' );
+
+/**
  * Register plugin blocks.
  */
 function wp_livescore_la_register_blocks() {
 	register_block_type( WP_LIVESCORE_LA_DIR . 'blocks/related-league-blogs' );
 	register_block_type( WP_LIVESCORE_LA_DIR . 'blocks/related-team' );
+	register_block_type( WP_LIVESCORE_LA_DIR . 'blocks/opponent-team' );
+	register_block_type( WP_LIVESCORE_LA_DIR . 'blocks/related-prediction-match' );
 	register_block_type( WP_LIVESCORE_LA_DIR . 'blocks/league-filters' );
 	register_block_type( WP_LIVESCORE_LA_DIR . 'blocks/team-filters' );
+	register_block_type( WP_LIVESCORE_LA_DIR . 'blocks/prediction-filters' );
 	register_block_type( WP_LIVESCORE_LA_DIR . 'blocks/related-team-news' );
 	register_block_type( WP_LIVESCORE_LA_DIR . 'blocks/match-counter' );
 	register_block_type( WP_LIVESCORE_LA_DIR . 'blocks/match-list' );
 	register_block_type( WP_LIVESCORE_LA_DIR . 'blocks/match-filters' );
+	register_block_type( WP_LIVESCORE_LA_DIR . 'blocks/match-win-graph' );
 	register_block_type( WP_LIVESCORE_LA_DIR . 'blocks/tracker-iframe' );
 	register_block_type( WP_LIVESCORE_LA_DIR . 'blocks/fixture-iframe' );
 	register_block_type( WP_LIVESCORE_LA_DIR . 'blocks/league-data' );
@@ -582,6 +808,45 @@ function wp_livescore_la_enqueue_match_query_loop_variation() {
 add_action( 'enqueue_block_editor_assets', 'wp_livescore_la_enqueue_match_query_loop_variation' );
 
 /**
+ * Load frontend behavior for Match Query Loop load more buttons.
+ */
+function wp_livescore_la_enqueue_match_query_loop_view() {
+	$view_script_path = WP_LIVESCORE_LA_DIR . 'blocks/match-query-loop/view.js';
+
+	wp_enqueue_style(
+		'wp-livescore-la-match-query-loop',
+		WP_LIVESCORE_LA_URL . 'blocks/match-query-loop/style.css',
+		array(),
+		WP_LIVESCORE_LA_VERSION
+	);
+
+	wp_enqueue_script(
+		'wp-livescore-la-match-query-loop-view',
+		WP_LIVESCORE_LA_URL . 'blocks/match-query-loop/view.js',
+		array(),
+		file_exists( $view_script_path ) ? (string) filemtime( $view_script_path ) : WP_LIVESCORE_LA_VERSION,
+		true
+	);
+}
+add_action( 'wp_enqueue_scripts', 'wp_livescore_la_enqueue_match_query_loop_view' );
+
+/**
+ * Flush rewrite rules once after the Prediction post type is introduced.
+ *
+ * Existing active installs do not run the activation hook again, so the new
+ * /predictions/%postname% route needs one migration flush.
+ */
+function wp_livescore_la_maybe_flush_prediction_rewrite_rules() {
+	if ( '1' === get_option( 'wp_livescore_la_prediction_rewrite_flushed', '' ) ) {
+		return;
+	}
+
+	flush_rewrite_rules( false );
+	update_option( 'wp_livescore_la_prediction_rewrite_flushed', '1', false );
+}
+add_action( 'init', 'wp_livescore_la_maybe_flush_prediction_rewrite_rules', 20 );
+
+/**
  * Register activation behavior.
  */
 function wp_livescore_la_activate() {
@@ -591,9 +856,13 @@ function wp_livescore_la_activate() {
 	wp_livescore_la_register_league_season_taxonomy();
 	wp_livescore_la_register_team_post_type();
 	wp_livescore_la_register_player_post_type();
+	wp_livescore_la_register_prediction_post_type();
 	wp_livescore_la_register_match_post_type();
 	if ( function_exists( 'wp_livescore_la_install_import_queue_table' ) ) {
 		wp_livescore_la_install_import_queue_table();
+	}
+	if ( function_exists( 'wp_livescore_la_schedule_kadario_daily_import' ) ) {
+		wp_livescore_la_schedule_kadario_daily_import();
 	}
 	flush_rewrite_rules();
 }
@@ -603,9 +872,9 @@ register_activation_hook( __FILE__, 'wp_livescore_la_activate' );
  * Register deactivation behavior.
  */
 function wp_livescore_la_deactivate() {
-	$timestamp = wp_next_scheduled( 'wp_livescore_la_process_import_queue' );
-	if ( $timestamp ) {
-		wp_unschedule_event( $timestamp, 'wp_livescore_la_process_import_queue' );
+	wp_livescore_la_unschedule_import_queue_processing();
+	if ( function_exists( 'wp_livescore_la_unschedule_kadario_daily_import' ) ) {
+		wp_livescore_la_unschedule_kadario_daily_import();
 	}
 	flush_rewrite_rules();
 }
@@ -731,10 +1000,10 @@ function wp_livescore_la_enqueue_admin_assets( $hook ) {
 add_action( 'admin_enqueue_scripts', 'wp_livescore_la_enqueue_admin_assets' );
 
 /**
- * Enqueue lightweight frontend styles for Team detail output.
+ * Enqueue lightweight frontend assets.
  */
 function wp_livescore_la_enqueue_frontend_assets() {
-	if ( ! is_singular( array( 'team', 'match' ) ) && ! is_post_type_archive( 'player' ) ) {
+	if ( ! is_singular( array( 'team', 'match' ) ) && ! is_post_type_archive( array( 'team', 'player', 'prediction' ) ) ) {
 		return;
 	}
 
@@ -745,12 +1014,22 @@ function wp_livescore_la_enqueue_frontend_assets() {
 		WP_LIVESCORE_LA_VERSION
 	);
 
-	if ( is_post_type_archive( 'player' ) ) {
+	if ( is_post_type_archive( array( 'team', 'player', 'prediction' ) ) ) {
 		wp_enqueue_style(
 			'wp-livescore-la-player-archive',
 			WP_LIVESCORE_LA_URL . 'blocks/team-filters/style.css',
 			array(),
 			WP_LIVESCORE_LA_VERSION
+		);
+	}
+
+	if ( is_post_type_archive( 'team' ) ) {
+		wp_enqueue_script(
+			'wp-livescore-la-archive-load-more',
+			WP_LIVESCORE_LA_URL . 'templates/archive-load-more.js',
+			array(),
+			WP_LIVESCORE_LA_VERSION,
+			true
 		);
 	}
 }

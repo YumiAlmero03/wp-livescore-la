@@ -62,6 +62,8 @@ function wp_livescore_la_team_meta_fields() {
 		'_team_instagram'    => __( 'Instagram', 'wp-livescore-la' ),
 		'_team_twitter'      => __( 'Twitter/X', 'wp-livescore-la' ),
 		'_team_youtube'      => __( 'YouTube', 'wp-livescore-la' ),
+		'_team_recent_form'  => __( 'Recent Form', 'wp-livescore-la' ),
+		'_team_coach_name'   => __( 'Coach Name', 'wp-livescore-la' ),
 		'_team_status'       => __( 'Status', 'wp-livescore-la' ),
 		'_team_sport_id'     => __( 'Sport ID', 'wp-livescore-la' ),
 		'_team_sport_name'   => __( 'Sport Name', 'wp-livescore-la' ),
@@ -160,18 +162,30 @@ function wp_livescore_la_render_team_meta_box( $post ) {
 				<th scope="row"><label for="wp_livescore_la_team_country_id"><?php esc_html_e( 'Country', 'wp-livescore-la' ); ?></label></th>
 				<td><?php wp_livescore_la_render_post_select( 'wp_livescore_la_team_country_id', 'country', $country_id, __( 'Select country', 'wp-livescore-la' ) ); ?></td>
 			</tr>
-			<?php foreach ( array( '_team_api_id', '_team_short_name', '_team_logo', '_team_website', '_team_facebook', '_team_instagram', '_team_twitter', '_team_youtube' ) as $meta_key ) : ?>
+			<?php foreach ( array( '_team_api_id', '_team_short_name', '_team_logo', '_team_website', '_team_facebook', '_team_instagram', '_team_twitter', '_team_youtube', '_team_recent_form', '_team_coach_name' ) as $meta_key ) : ?>
 				<?php $value = get_post_meta( $post->ID, $meta_key, true ); ?>
 				<tr>
 					<th scope="row"><label for="<?php echo esc_attr( $meta_key ); ?>"><?php echo esc_html( wp_livescore_la_team_meta_fields()[ $meta_key ] ); ?></label></th>
 					<td>
-						<input
-							type="<?php echo in_array( $meta_key, array( '_team_logo', '_team_website', '_team_facebook', '_team_instagram', '_team_twitter', '_team_youtube' ), true ) ? 'url' : 'text'; ?>"
-							id="<?php echo esc_attr( $meta_key ); ?>"
-							name="wp_livescore_la_team_meta[<?php echo esc_attr( $meta_key ); ?>]"
-							value="<?php echo esc_attr( $value ); ?>"
-							class="regular-text"
-						/>
+						<?php if ( '_team_recent_form' === $meta_key ) : ?>
+							<input
+								type="text"
+								id="<?php echo esc_attr( $meta_key ); ?>"
+								name="wp_livescore_la_team_meta[<?php echo esc_attr( $meta_key ); ?>]"
+								value="<?php echo esc_attr( $value ); ?>"
+								class="regular-text"
+								placeholder="<?php echo esc_attr__( 'W, D, W, L, D', 'wp-livescore-la' ); ?>"
+							/>
+							<p class="description"><?php esc_html_e( 'Comma-separated recent results, newest first.', 'wp-livescore-la' ); ?></p>
+						<?php else : ?>
+							<input
+								type="<?php echo in_array( $meta_key, array( '_team_logo', '_team_website', '_team_facebook', '_team_instagram', '_team_twitter', '_team_youtube' ), true ) ? 'url' : 'text'; ?>"
+								id="<?php echo esc_attr( $meta_key ); ?>"
+								name="wp_livescore_la_team_meta[<?php echo esc_attr( $meta_key ); ?>]"
+								value="<?php echo esc_attr( $value ); ?>"
+								class="regular-text"
+							/>
+						<?php endif; ?>
 					</td>
 				</tr>
 			<?php endforeach; ?>
@@ -275,9 +289,12 @@ function wp_livescore_la_save_team_meta( $post_id ) {
 	}
 
 	$posted_meta = isset( $_POST['wp_livescore_la_team_meta'] ) && is_array( $_POST['wp_livescore_la_team_meta'] ) ? wp_unslash( $_POST['wp_livescore_la_team_meta'] ) : array();
-	foreach ( array( '_team_api_id', '_team_short_name', '_team_logo', '_team_website', '_team_facebook', '_team_instagram', '_team_twitter', '_team_youtube' ) as $meta_key ) {
+	foreach ( array( '_team_api_id', '_team_short_name', '_team_logo', '_team_website', '_team_facebook', '_team_instagram', '_team_twitter', '_team_youtube', '_team_recent_form', '_team_coach_name' ) as $meta_key ) {
 		$value = isset( $posted_meta[ $meta_key ] ) ? $posted_meta[ $meta_key ] : '';
 		$value = in_array( $meta_key, array( '_team_logo', '_team_website', '_team_facebook', '_team_instagram', '_team_twitter', '_team_youtube' ), true ) ? esc_url_raw( $value ) : sanitize_text_field( $value );
+		if ( '_team_recent_form' === $meta_key ) {
+			$value = wp_livescore_la_normalize_team_recent_form( $value );
+		}
 
 		if ( '' === $value ) {
 			delete_post_meta( $post_id, $meta_key );
@@ -293,6 +310,31 @@ function wp_livescore_la_save_team_meta( $post_id ) {
 	wp_livescore_la_sync_team_country_meta( $post_id, isset( $_POST['wp_livescore_la_team_country_id'] ) ? absint( wp_unslash( $_POST['wp_livescore_la_team_country_id'] ) ) : 0 );
 }
 add_action( 'save_post_team', 'wp_livescore_la_save_team_meta' );
+
+/**
+ * Normalize Team recent form into a comma-separated result list.
+ *
+ * @param mixed $value Recent form value.
+ * @return string
+ */
+function wp_livescore_la_normalize_team_recent_form( $value ) {
+	if ( is_array( $value ) ) {
+		$parts = $value;
+	} else {
+		$parts = preg_split( '/[\s,|\/]+/', (string) $value );
+	}
+
+	$form = array();
+	foreach ( $parts as $part ) {
+		$part = strtoupper( sanitize_text_field( trim( (string) $part ) ) );
+
+		if ( in_array( $part, array( 'W', 'D', 'L' ), true ) ) {
+			$form[] = $part;
+		}
+	}
+
+	return implode( ', ', array_slice( $form, 0, 10 ) );
+}
 
 /**
  * Sync Team sport details.
@@ -668,6 +710,181 @@ function wp_livescore_la_filter_frontend_team_query( $query ) {
 add_action( 'pre_get_posts', 'wp_livescore_la_filter_frontend_team_query' );
 
 /**
+ * Render one Team archive card.
+ *
+ * @return string
+ */
+function wp_livescore_la_render_team_archive_card() {
+	$team_id   = get_the_ID();
+	$team_meta = array_filter(
+		array(
+			get_post_meta( $team_id, '_team_sport_name', true ),
+			get_post_meta( $team_id, '_team_country_name', true ),
+			get_post_meta( $team_id, '_team_status', true ),
+		),
+		function ( $value ) {
+			return '' !== trim( (string) $value );
+		}
+	);
+
+	ob_start();
+	?>
+	<article <?php post_class( 'wp-livescore-la-team-archive__card' ); ?>>
+		<a class="wp-livescore-la-team-archive__image-link" href="<?php the_permalink(); ?>">
+			<?php if ( has_post_thumbnail() ) : ?>
+				<?php the_post_thumbnail( 'medium_large', array( 'class' => 'wp-livescore-la-team-archive__image' ) ); ?>
+			<?php elseif ( function_exists( 'wp_livescore_la_get_image_placeholder' ) ) : ?>
+				<?php echo wp_kses_post( wp_livescore_la_get_image_placeholder( 'wp-livescore-la-team-archive__image wp-livescore-la-team-archive__placeholder', get_the_title() ) ); ?>
+			<?php endif; ?>
+		</a>
+
+		<div class="wp-livescore-la-team-archive__content">
+			<h2 class="wp-livescore-la-team-archive__title">
+				<a href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
+			</h2>
+
+			<?php if ( ! empty( $team_meta ) ) : ?>
+				<p class="wp-livescore-la-team-archive__meta"><?php echo esc_html( implode( ' | ', $team_meta ) ); ?></p>
+			<?php endif; ?>
+
+			<?php if ( has_excerpt() ) : ?>
+				<div class="wp-livescore-la-team-archive__excerpt">
+					<?php the_excerpt(); ?>
+				</div>
+			<?php endif; ?>
+		</div>
+	</article>
+	<?php
+
+	return (string) ob_get_clean();
+}
+
+/**
+ * Render Team archive cards from a query.
+ *
+ * @param WP_Query $query Query object.
+ * @return string
+ */
+function wp_livescore_la_render_team_archive_cards( $query ) {
+	if ( ! $query instanceof WP_Query || ! $query->have_posts() ) {
+		return '';
+	}
+
+	ob_start();
+
+	while ( $query->have_posts() ) {
+		$query->the_post();
+		echo wp_livescore_la_render_team_archive_card(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	}
+
+	wp_reset_postdata();
+
+	return (string) ob_get_clean();
+}
+
+/**
+ * Sanitize captured Team archive query vars for AJAX loading.
+ *
+ * @param array<string, mixed> $query_vars Raw query vars.
+ * @return array<string, mixed>
+ */
+function wp_livescore_la_sanitize_team_archive_load_more_query_vars( $query_vars ) {
+	$allowed = array(
+		'meta_key',
+		'meta_query',
+		'meta_value',
+		'order',
+		'orderby',
+		'post__in',
+		'post__not_in',
+		'posts_per_page',
+		's',
+		'tax_query',
+	);
+	$sanitized = array();
+
+	foreach ( $allowed as $key ) {
+		if ( ! isset( $query_vars[ $key ] ) || '' === $query_vars[ $key ] || array() === $query_vars[ $key ] ) {
+			continue;
+		}
+
+		if ( in_array( $key, array( 'post__in', 'post__not_in' ), true ) ) {
+			$sanitized[ $key ] = array_map( 'absint', (array) $query_vars[ $key ] );
+			continue;
+		}
+
+		if ( 'posts_per_page' === $key ) {
+			$sanitized[ $key ] = max( 1, min( 100, absint( $query_vars[ $key ] ) ) );
+			continue;
+		}
+
+		if ( is_array( $query_vars[ $key ] ) ) {
+			$sanitized[ $key ] = map_deep( $query_vars[ $key ], 'sanitize_text_field' );
+			continue;
+		}
+
+		$sanitized[ $key ] = sanitize_text_field( (string) $query_vars[ $key ] );
+	}
+
+	$sanitized['post_type']           = 'team';
+	$sanitized['post_status']         = 'publish';
+	$sanitized['ignore_sticky_posts'] = true;
+
+	return $sanitized;
+}
+
+/**
+ * Get query vars for the Team archive View More button.
+ *
+ * @param WP_Query $query Query object.
+ * @return array<string, mixed>
+ */
+function wp_livescore_la_get_team_archive_load_more_query_vars( $query ) {
+	if ( ! $query instanceof WP_Query ) {
+		return array(
+			'post_type'           => 'team',
+			'post_status'         => 'publish',
+			'ignore_sticky_posts' => true,
+		);
+	}
+
+	return wp_livescore_la_sanitize_team_archive_load_more_query_vars( (array) $query->query_vars );
+}
+
+/**
+ * AJAX handler for Team archive "View More".
+ */
+function wp_livescore_la_load_more_teams() {
+	check_ajax_referer( 'wp_livescore_la_load_more_teams', 'nonce' );
+
+	$page           = isset( $_POST['page'] ) ? absint( $_POST['page'] ) : 1;
+	$raw_query_vars = isset( $_POST['query_vars'] ) ? wp_unslash( $_POST['query_vars'] ) : '{}';
+	$query_vars     = json_decode( (string) $raw_query_vars, true );
+
+	if ( $page <= 1 || ! is_array( $query_vars ) ) {
+		wp_send_json_error();
+	}
+
+	$query_vars          = wp_livescore_la_sanitize_team_archive_load_more_query_vars( $query_vars );
+	$query_vars['paged'] = $page;
+	$query               = new WP_Query( $query_vars );
+	$html                = wp_livescore_la_render_team_archive_cards( $query );
+
+	if ( '' === $html ) {
+		wp_send_json_error();
+	}
+
+	wp_send_json_success(
+		array(
+			'html'    => $html,
+			'hasMore' => $page < (int) $query->max_num_pages,
+		)
+	);
+}
+add_action( 'wp_ajax_wp_livescore_la_load_more_teams', 'wp_livescore_la_load_more_teams' );
+add_action( 'wp_ajax_nopriv_wp_livescore_la_load_more_teams', 'wp_livescore_la_load_more_teams' );
+
+/**
  * Find an existing Team by API ID, slug, then title.
  *
  * @param string $api_id API ID.
@@ -706,7 +923,32 @@ function wp_livescore_la_find_team_post( $api_id, $name ) {
 		)
 	);
 
-	return ! empty( $posts ) ? (int) $posts[0] : 0;
+	if ( ! empty( $posts ) ) {
+		return (int) $posts[0];
+	}
+
+	$normalized_name = function_exists( 'wp_livescore_la_normalize_import_title_key' ) ? wp_livescore_la_normalize_import_title_key( $name ) : sanitize_title( $name );
+	if ( '' === $normalized_name ) {
+		return 0;
+	}
+
+	$team_ids = get_posts(
+		array(
+			'post_type'      => 'team',
+			'post_status'    => 'any',
+			'fields'         => 'ids',
+			'posts_per_page' => -1,
+		)
+	);
+
+	foreach ( $team_ids as $team_id ) {
+		$normalized_title = function_exists( 'wp_livescore_la_normalize_import_title_key' ) ? wp_livescore_la_normalize_import_title_key( get_the_title( $team_id ) ) : sanitize_title( get_the_title( $team_id ) );
+		if ( $normalized_title === $normalized_name ) {
+			return (int) $team_id;
+		}
+	}
+
+	return 0;
 }
 
 /**
@@ -815,8 +1057,16 @@ function wp_livescore_la_import_teams( $records, $api_source = '' ) {
 			continue;
 		}
 
-		$api_id  = wp_livescore_la_record_value( $record, array( 'idTeam', 'api_id', 'id', 'team_id' ) );
-		$post_id = wp_livescore_la_find_team_post( $api_id, $name );
+		$api_id              = wp_livescore_la_record_value( $record, array( 'idTeam', 'api_id', 'id', 'team_id' ) );
+		$is_sofascore_import = 'sofascore' === sanitize_key( $api_source );
+		$post_id             = $is_sofascore_import && function_exists( 'wp_livescore_la_find_post_by_import_title' ) ? wp_livescore_la_find_post_by_import_title( 'team', $name ) : 0;
+		$post_id             = $post_id > 0 ? $post_id : wp_livescore_la_find_team_post( $is_sofascore_import ? '' : $api_id, $name );
+		$is_update           = $post_id > 0;
+		if ( $is_sofascore_import && ! $is_update ) {
+			$result['skipped']++;
+			continue;
+		}
+
 		$content = wp_livescore_la_record_value( $record, array( 'strDescriptionEN', 'description', 'desc', 'content' ) );
 
 		$post_data = array(
@@ -844,7 +1094,7 @@ function wp_livescore_la_import_teams( $records, $api_source = '' ) {
 		}
 
 		update_post_meta( $saved_id, '_team_status', 'active' );
-		if ( '' !== $api_id ) {
+		if ( '' !== $api_id && ! ( $is_sofascore_import && $is_update ) ) {
 			update_post_meta( $saved_id, '_team_api_id', sanitize_text_field( $api_id ) );
 		}
 		if ( '' !== $api_source ) {

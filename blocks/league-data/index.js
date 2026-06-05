@@ -31,6 +31,15 @@
 		{ label: __( 'Justify', 'wp-livescore-la' ), value: 'justify' }
 	];
 
+	const titleTagOptions = [
+		{ label: __( 'Default', 'wp-livescore-la' ), value: 'div' },
+		{ label: 'H2', value: 'h2' },
+		{ label: 'H3', value: 'h3' },
+		{ label: 'H4', value: 'h4' },
+		{ label: 'H5', value: 'h5' },
+		{ label: 'H6', value: 'h6' }
+	];
+
 	blocks.registerBlockType( 'wp-livescore/league-data', {
 		edit: function ( props ) {
 			const attributes = props.attributes;
@@ -55,6 +64,7 @@
 							label: __( 'Custom field', 'wp-livescore-la' ),
 							value: attributes.dataField || 'country',
 							options: [
+								{ label: __( 'Title', 'wp-livescore-la' ), value: '__title' },
 								{ label: __( 'Country', 'wp-livescore-la' ), value: 'country' },
 								{ label: __( 'Sports', 'wp-livescore-la' ), value: 'sports' },
 								{ label: __( 'API ID', 'wp-livescore-la' ), value: 'api_id' },
@@ -78,6 +88,17 @@
 							value: attributes.icon || '',
 							options: iconOptions,
 							onChange: function ( value ) { setAttributes( { icon: value } ); }
+						} ),
+						el( TextControl, {
+							label: __( 'Title', 'wp-livescore-la' ),
+							value: attributes.title || '',
+							onChange: function ( value ) { setAttributes( { title: value } ); }
+						} ),
+						el( SelectControl, {
+							label: __( 'Title heading type', 'wp-livescore-la' ),
+							value: attributes.titleTag || 'div',
+							options: titleTagOptions,
+							onChange: function ( value ) { setAttributes( { titleTag: value } ); }
 						} ),
 						el( TextControl, {
 							label: __( 'Prefix text', 'wp-livescore-la' ),

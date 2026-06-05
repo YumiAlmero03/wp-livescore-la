@@ -96,6 +96,24 @@
 	overflow-wrap: anywhere;
 }
 
+.wp-livescore-la-team-archive__load-more-wrap {
+	display: flex;
+	justify-content: center;
+	margin-top: 28px;
+}
+
+.wp-livescore-la-team-archive__load-more {
+	cursor: pointer;
+	min-height: 40px;
+	min-width: 120px;
+	padding: 8px 18px;
+}
+
+.wp-livescore-la-team-archive__load-more.is-loading {
+	cursor: progress;
+	opacity: 0.7;
+}
+
 .wp-livescore-la-player-archive {
 	margin: 0 auto;
 	max-width: 1200px;
@@ -143,4 +161,62 @@
 	margin: 0.5rem 0 0;
 	opacity: 0.72;
 	overflow-wrap: anywhere;
+}
+
+.wp-livescore-la-prediction-archive {
+	margin: 0 auto;
+	max-width: 1200px;
+	padding: 32px 16px;
+}
+
+.wp-livescore-la-prediction-archive__grid {
+	display: grid;
+	gap: 20px;
+	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+	margin-top: 24px;
+}
+
+.wp-livescore-la-prediction-archive__card {
+	border: 1px solid currentColor;
+	border-radius: 6px;
+	overflow: hidden;
+}
+
+.wp-livescore-la-prediction-archive__image {
+	aspect-ratio: 16 / 9;
+	display: block;
+	height: auto;
+	object-fit: cover;
+	width: 100%;
+}
+
+.wp-livescore-la-prediction-archive__placeholder {
+	align-items: center;
+	background: color-mix(in srgb, currentColor 8%, transparent);
+	border-bottom: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+	display: flex;
+	justify-content: center;
+	padding: 1rem;
+	text-align: center;
+}
+
+.wp-livescore-la-prediction-archive__content,
+.wp-livescore-la-prediction-archive__empty {
+	padding: 16px;
+}
+
+.wp-livescore-la-prediction-archive__title {
+	margin: 0;
+}
+
+.wp-livescore-la-prediction-archive__teams,
+.wp-livescore-la-prediction-archive__meta {
+	font-size: 0.9em;
+	margin: 0.5rem 0 0;
+	opacity: 0.72;
+	overflow-wrap: anywhere;
+}
+
+.wp-livescore-la-prediction-archive__excerpt {
+	margin-top: 0.75rem;
 }

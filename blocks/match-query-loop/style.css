@@ -1,0 +1,31 @@
+.wp-livescore-la-match-query-loop-load-more-wrap {
+	display: flex;
+	justify-content: center;
+	margin-top: 1.5rem;
+}
+
+.wp-livescore-la-match-query-loop-load-more {
+	align-items: center;
+	background: #111827;
+	border: 0;
+	border-radius: 4px;
+	color: #fff;
+	cursor: pointer;
+	display: inline-flex;
+	font: inherit;
+	font-weight: 600;
+	justify-content: center;
+	line-height: 1.2;
+	min-height: 2.75rem;
+	padding: 0.75rem 1.25rem;
+}
+
+.wp-livescore-la-match-query-loop-load-more:hover,
+.wp-livescore-la-match-query-loop-load-more:focus-visible {
+	opacity: 0.85;
+}
+
+.wp-livescore-la-match-query-loop-load-more:disabled {
+	cursor: progress;
+	opacity: 0.6;
+}

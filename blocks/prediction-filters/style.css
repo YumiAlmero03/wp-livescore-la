@@ -1,0 +1,39 @@
+.wp-livescore-la-prediction-filters {
+	box-sizing: border-box;
+	margin: 1rem 0 1.5rem;
+}
+
+.wp-livescore-la-prediction-filters__title {
+	margin: 0 0 0.75rem;
+}
+
+.wp-livescore-la-prediction-filters__form {
+	align-items: end;
+	display: grid;
+	gap: 0.75rem;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.wp-livescore-la-prediction-filters__field {
+	display: grid;
+	gap: 0.35rem;
+}
+
+.wp-livescore-la-prediction-filters__field select,
+.wp-livescore-la-prediction-filters__field input {
+	min-height: 40px;
+	width: 100%;
+}
+
+.wp-livescore-la-prediction-filters__actions {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+}
+
+.wp-livescore-la-prediction-filters__submit {
+	cursor: pointer;
+	min-height: 40px;
+	padding: 8px 18px;
+}

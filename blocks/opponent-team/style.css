@@ -1,0 +1,51 @@
+.wp-livescore-la-opponent-team {
+	box-sizing: border-box;
+}
+
+.wp-livescore-la-opponent-team__link {
+	align-items: center;
+	color: inherit;
+	display: inline-flex;
+	flex-direction: column;
+	gap: var(--wp--style--block-gap, 0.75rem);
+	max-width: 100%;
+	text-decoration: none;
+	text-align: center;
+}
+
+.wp-livescore-la-opponent-team--image-left .wp-livescore-la-opponent-team__link,
+.wp-livescore-la-opponent-team--image-right .wp-livescore-la-opponent-team__link {
+	flex-direction: row;
+	text-align: left;
+}
+
+.wp-livescore-la-opponent-team--image-right .wp-livescore-la-opponent-team__link {
+	flex-direction: row-reverse;
+	text-align: right;
+}
+
+.wp-livescore-la-opponent-team__image {
+	aspect-ratio: 1;
+	display: block;
+	height: var(--wp-livescore-la-opponent-team-image-size, 3rem);
+	object-fit: contain;
+	width: var(--wp-livescore-la-opponent-team-image-size, 3rem);
+}
+
+.wp-livescore-la-opponent-team__placeholder {
+	align-items: center;
+	background: color-mix(in srgb, currentColor 8%, transparent);
+	border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+	display: inline-flex;
+	font-size: 0.7em;
+	justify-content: center;
+	padding: 0.5rem;
+}
+
+.wp-livescore-la-opponent-team__name {
+	overflow-wrap: anywhere;
+}
+
+.wp-livescore-la-opponent-team__empty {
+	margin: 0;
+}
