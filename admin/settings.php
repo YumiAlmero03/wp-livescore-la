@@ -1003,7 +1003,8 @@ function wp_livescore_la_handle_create_kadario_sample_prediction() {
 		wp_livescore_la_redirect_notice( 'import_error', __( 'Kadario sample importer is not available.', 'wp-livescore-la' ) );
 	}
 
-	$result = wp_livescore_la_create_kadario_sample_prediction();
+	$sample_json = isset( $_POST['wp_livescore_la_kadario_sample_json'] ) ? wp_unslash( $_POST['wp_livescore_la_kadario_sample_json'] ) : '';
+	$result      = wp_livescore_la_create_kadario_sample_prediction( (string) trim( $sample_json ) );
 
 	if ( is_wp_error( $result ) ) {
 		wp_livescore_la_redirect_notice( 'import_error', $result->get_error_message() );

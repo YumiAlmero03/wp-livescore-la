@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       WP Livescore by LA
  * Description:       Lists sports categories and imports livescore custom posts from a configured API.
- * Version:           1.2.1
+ * Version:           1.2.2
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Lailanie Almero
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'WP_LIVESCORE_LA_VERSION', '1.2.1' );
+define( 'WP_LIVESCORE_LA_VERSION', '1.2.2' );
 define( 'WP_LIVESCORE_LA_FILE', __FILE__ );
 define( 'WP_LIVESCORE_LA_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WP_LIVESCORE_LA_URL', plugin_dir_url( __FILE__ ) );

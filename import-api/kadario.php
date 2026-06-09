@@ -296,8 +296,40 @@ function wp_livescore_la_fetch_kadario_records( $selected_key = 'all' ) {
  *
  * @return array Import result counts.
  */
-function wp_livescore_la_create_kadario_sample_prediction() {
-	return wp_livescore_la_import_kadario_records( array( wp_livescore_la_kadario_sample_prediction_record() ) );
+function wp_livescore_la_create_kadario_sample_prediction( $sample_json = '' ) {
+	if ( '' !== trim( (string) $sample_json ) ) {
+		$record = wp_livescore_la_kadario_sample_prediction_record_from_json( $sample_json );
+		if ( is_wp_error( $record ) ) {
+			return $record;
+		}
+	} else {
+		$record = wp_livescore_la_kadario_sample_prediction_record();
+	}
+
+	return wp_livescore_la_import_kadario_records( array( $record ) );
+}
+
+/**
+ * Build a Kadario sample Prediction record from provided JSON.
+ *
+ * @param string $json Raw Kadario record JSON.
+ * @return array|WP_Error
+ */
+function wp_livescore_la_kadario_sample_prediction_record_from_json( $json ) {
+	$decoded = json_decode( (string) $json, true );
+	if ( JSON_ERROR_NONE !== json_last_error() || ! is_array( $decoded ) ) {
+		return new WP_Error( 'wp_livescore_la_invalid_sample_json', __( 'Invalid sample Kadario JSON.', 'wp-livescore-la' ) );
+	}
+
+	if ( isset( $decoded[0] ) && is_array( $decoded[0] ) ) {
+		$decoded = $decoded[0];
+	}
+
+	if ( ! isset( $decoded['match_id'] ) && ! isset( $decoded['generated_content'] ) ) {
+		return new WP_Error( 'wp_livescore_la_invalid_sample_json', __( 'Sample Kadario JSON must contain a valid Kadario record.', 'wp-livescore-la' ) );
+	}
+
+	return $decoded;
 }
 
 /**
@@ -939,8 +971,18 @@ function wp_livescore_la_import_kadario_players( $generated, $context ) {
 				continue;
 			}
 
+			$name = wp_livescore_la_record_value( $player, array( 'name', 'player_name', 'title' ) );
+			if ( '' === trim( (string) $name ) ) {
+				continue;
+			}
+
+			// Skip AI/predicted placeholder players that include the word "Predicted".
+			if ( false !== stripos( (string) $name, 'Predicted' ) ) {
+				continue;
+			}
+
 			$records[] = array(
-				'name'         => wp_livescore_la_record_value( $player, array( 'name', 'player_name', 'title' ) ),
+				'name'         => $name,
 				'position'     => wp_livescore_la_kadario_full_position_name( wp_livescore_la_record_value( $player, array( 'position' ) ) ),
 				'jerseyNumber' => wp_livescore_la_record_value( $player, array( 'shirt_number', 'jersey', 'jerseyNumber', 'number' ) ),
 			);
