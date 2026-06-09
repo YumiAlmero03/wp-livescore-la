@@ -88,6 +88,11 @@ function wp_livescore_la_resolve_kadario_target_url( $target ) {
 function wp_livescore_la_get_kadario_api_link() {
 	global $wp_livescore_la_kadario_api_link;
 
+	$api_link = sanitize_text_field( get_option( 'wp_livescore_la_kadario_url', '' ) );
+	if ( '' !== $api_link ) {
+		return esc_url_raw( $api_link );
+	}
+
 	return isset( $wp_livescore_la_kadario_api_link ) ? esc_url_raw( $wp_livescore_la_kadario_api_link ) : '';
 }
 
@@ -132,6 +137,11 @@ function wp_livescore_la_get_kadario_headers() {
 	$website_name = wp_livescore_la_get_website_name_header();
 	if ( '' !== $website_name ) {
 		$headers['X-Website-Name'] = $website_name;
+	}
+
+	$origin_domain = sanitize_text_field( get_option( 'wp_livescore_la_origin_domain', '' ) );
+	if ( '' !== $origin_domain ) {
+		$headers['Origin'] = $origin_domain;
 	}
 
 	return $headers;
@@ -1571,19 +1581,19 @@ function wp_livescore_la_kadario_team_writeups_block_markup( $generated ) {
 	$html .= '<div class="wp-block-uagb-container uagb-block-48eb2397 alignfull uagb-is-root-container"><div class="uagb-container-inner-blocks-wrap"><!-- wp:heading {"anchor":"h-about-the-team"} -->' . "\n";
 	$html .= '<h2 id="h-about-the-team" class="wp-block-heading">' . esc_html__( 'About the team', 'wp-livescore-la' ) . '</h2>' . "\n";
 	$html .= '<!-- /wp:heading -->' . "\n\n";
-	$html .= '<!-- wp:uagb/container {"block_id":"7fe87ca8","directionDesktop":"row","alignItemsDesktop":"flex-start","variationSelected":true,"isBlockRootParent":true} -->' . "\n";
+	$html .= '<!-- wp:uagb/container {"block_id":"7fe87ca8","directionDesktop":"row","alignItemsDesktop":"stretch","alignItemsTablet":"stretch","alignItemsMobile":"stretch","variationSelected":true,"isBlockRootParent":true,"equalHeight":true} -->' . "\n";
 	$html .= '<div class="wp-block-uagb-container uagb-block-7fe87ca8 alignfull uagb-is-root-container"><div class="uagb-container-inner-blocks-wrap">';
 	$html .= wp_livescore_la_kadario_team_writeup_column_markup(
 		'ea9d2e5f',
 		$away_name,
 		$away,
-		'{"block_id":"ea9d2e5f","widthDesktop":50,"topPaddingDesktop":0,"bottomPaddingDesktop":0,"leftPaddingDesktop":0,"rightPaddingDesktop":0,"widthSetByUser":true}'
+		'{"block_id":"ea9d2e5f","widthDesktop":50,"justifyContentDesktop":"flex-start","topPaddingDesktop":20,"bottomPaddingDesktop":20,"leftPaddingDesktop":20,"rightPaddingDesktop":20,"paddingLink":false,"widthSetByUser":true,"containerBorderTopWidth":1,"containerBorderLeftWidth":1,"containerBorderRightWidth":1,"containerBorderBottomWidth":1,"containerBorderStyle":"solid","containerBorderColor":"var(--ast-global-color-6)"}'
 	);
 	$html .= wp_livescore_la_kadario_team_writeup_column_markup(
 		'a6615b81',
 		$home_name,
 		$home,
-		'{"block_id":"a6615b81","widthDesktop":50,"topPaddingDesktop":0,"bottomPaddingDesktop":10,"leftPaddingDesktop":10,"rightPaddingDesktop":10,"paddingLink":false,"widthSetByUser":true}'
+		'{"block_id":"a6615b81","widthDesktop":50,"justifyContentDesktop":"flex-start","topPaddingDesktop":20,"bottomPaddingDesktop":20,"leftPaddingDesktop":20,"rightPaddingDesktop":20,"paddingLink":false,"widthSetByUser":true,"containerBorderTopWidth":1,"containerBorderLeftWidth":1,"containerBorderRightWidth":1,"containerBorderBottomWidth":1,"containerBorderStyle":"solid","containerBorderColor":"var(--ast-global-color-6)"}'
 	);
 	$html .= '</div></div>' . "\n";
 	$html .= '<!-- /wp:uagb/container --></div></div>' . "\n";
@@ -1690,7 +1700,7 @@ function wp_livescore_la_kadario_match_info_block_markup( $generated ) {
 			'block_id' => 'fd107f7a',
 			'label'    => __( 'Venue', 'wp-livescore-la' ),
 			'value'    => isset( $match_info['venue'] ) ? sanitize_text_field( (string) $match_info['venue'] ) : '',
-			'attrs'    => '{"block_id":"fd107f7a","topPaddingDesktop":0,"bottomPaddingDesktop":0,"leftPaddingDesktop":30,"rightPaddingDesktop":30,"paddingLink":false}',
+			'attrs'    => '{"block_id":"fd107f7a","topPaddingDesktop":0,"bottomPaddingDesktop":0,"leftPaddingDesktop":20,"rightPaddingDesktop":20,"paddingLink":false}',
 		),
 	);
 

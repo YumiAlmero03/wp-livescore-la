@@ -251,6 +251,18 @@
 									} )
 								} );
 							}
+							} ),
+						el( TextControl, {
+							label: __( 'Offset', 'wp-livescore-la' ),
+							type: 'number',
+							value: query.offset || 0,
+							onChange: function ( value ) {
+								props.setAttributes( {
+									query: Object.assign( {}, query, {
+										offset: parseInt( value, 10 ) || 0
+									} )
+								} );
+							}
 						} ),
 						el( SelectControl, {
 							label: __( 'Date filter', 'wp-livescore-la' ),

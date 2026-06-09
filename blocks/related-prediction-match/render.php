@@ -84,10 +84,14 @@ if ( $related_id <= 0 || $target_type !== get_post_type( $related_id ) ) {
 	return '' !== $empty_message ? '<p class="wp-livescore-la-related-prediction-match__empty">' . esc_html( $empty_message ) . '</p>' : '';
 }
 
-$show_image   = ! array_key_exists( 'showImage', $attributes ) || ! empty( $attributes['showImage'] );
-$show_excerpt = ! array_key_exists( 'showExcerpt', $attributes ) || ! empty( $attributes['showExcerpt'] );
-$show_meta    = ! array_key_exists( 'showMeta', $attributes ) || ! empty( $attributes['showMeta'] );
-$title        = isset( $attributes['title'] ) ? sanitize_text_field( $attributes['title'] ) : '';
+$show_image    = ! array_key_exists( 'showImage', $attributes ) || ! empty( $attributes['showImage'] );
+$show_excerpt  = ! array_key_exists( 'showExcerpt', $attributes ) || ! empty( $attributes['showExcerpt'] );
+$show_meta     = ! array_key_exists( 'showMeta', $attributes ) || ! empty( $attributes['showMeta'] );
+$image_position = isset( $attributes['imagePosition'] ) ? sanitize_key( $attributes['imagePosition'] ) : 'top';
+$image_position = in_array( $image_position, array( 'top', 'left', 'right' ), true ) ? $image_position : 'top';
+$image_size    = isset( $attributes['imageSize'] ) ? absint( $attributes['imageSize'] ) : 100;
+$image_size    = $image_size > 0 && $image_size <= 100 ? $image_size : 100;
+$title         = isset( $attributes['title'] ) ? sanitize_text_field( $attributes['title'] ) : '';
 $permalink    = get_permalink( $related_id );
 $post_title   = get_the_title( $related_id );
 $excerpt      = has_excerpt( $related_id ) ? get_the_excerpt( $related_id ) : '';
@@ -137,7 +141,8 @@ if ( $show_meta ) {
 
 $wrapper_attributes = get_block_wrapper_attributes(
 	array(
-		'class' => 'wp-livescore-la-related-prediction-match wp-livescore-la-related-prediction-match--' . $target_type,
+		'class' => 'wp-livescore-la-related-prediction-match wp-livescore-la-related-prediction-match--' . $target_type . ' wp-livescore-la-related-prediction-match--image-' . $image_position,
+		'style' => '--wp-livescore-la-related-prediction-match-image-width:' . esc_attr( $image_size ) . '%;',
 	)
 );
 ?>

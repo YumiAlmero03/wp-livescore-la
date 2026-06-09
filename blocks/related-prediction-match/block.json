@@ -14,7 +14,9 @@
 		"showImage": { "type": "boolean", "default": true },
 		"showExcerpt": { "type": "boolean", "default": true },
 		"showMeta": { "type": "boolean", "default": true },
-		"emptyMessage": { "type": "string", "default": "" }
+		"emptyMessage": { "type": "string", "default": "" },
+		"imagePosition": { "type": "string", "default": "top" },
+		"imageSize": { "type": "number", "default": 100 }
 	},
 	"usesContext": [ "postId", "postType" ],
 	"supports": {

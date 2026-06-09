@@ -69,10 +69,24 @@ function wp_livescore_la_render_settings_page() {
 								</td>
 							</tr>
 							<tr>
+								<th scope="row"><label for="wp_livescore_la_kadario_url"><?php esc_html_e( 'Kadario API URL', 'wp-livescore-la' ); ?></label></th>
+								<td>
+									<input type="url" id="wp_livescore_la_kadario_url" name="wp_livescore_la_kadario_url" value="<?php echo esc_attr( get_option( 'wp_livescore_la_kadario_url', '' ) ); ?>" class="regular-text" placeholder="https://livescore-ai-635955947416.asia-east1.run.app" />
+									<p class="description"><?php esc_html_e( 'Base URL for Kadario API endpoints.', 'wp-livescore-la' ); ?></p>
+								</td>
+							</tr>
+							<tr>
 								<th scope="row"><label for="wp_livescore_la_kadario_api_key"><?php esc_html_e( 'Kadario API Key', 'wp-livescore-la' ); ?></label></th>
 								<td>
 									<input type="password" id="wp_livescore_la_kadario_api_key" name="wp_livescore_la_kadario_api_key" value="<?php echo esc_attr( get_option( 'wp_livescore_la_kadario_api_key', '' ) ); ?>" class="regular-text" autocomplete="off" />
 									<p class="description"><?php esc_html_e( 'Used as the Bearer token for Kadario import requests.', 'wp-livescore-la' ); ?></p>
+								</td>
+							</tr>
+							<tr>
+								<th scope="row"><label for="wp_livescore_la_origin_domain"><?php esc_html_e( 'Origin Domain', 'wp-livescore-la' ); ?></label></th>
+								<td>
+									<input type="text" id="wp_livescore_la_origin_domain" name="wp_livescore_la_origin_domain" value="<?php echo esc_attr( get_option( 'wp_livescore_la_origin_domain', '' ) ); ?>" class="regular-text" placeholder="https://example.com" />
+									<p class="description"><?php esc_html_e( 'Sent as the Origin header in Kadario API requests.', 'wp-livescore-la' ); ?></p>
 								</td>
 							</tr>
 						</tbody>
@@ -376,12 +390,16 @@ function wp_livescore_la_handle_save_settings() {
 	$api_key = isset( $_POST['wp_livescore_la_google_search_api_key'] ) ? sanitize_text_field( wp_unslash( $_POST['wp_livescore_la_google_search_api_key'] ) ) : '';
 	$cx      = isset( $_POST['wp_livescore_la_google_search_cx'] ) ? sanitize_text_field( wp_unslash( $_POST['wp_livescore_la_google_search_cx'] ) ) : '';
 	$website_name_header = isset( $_POST['wp_livescore_la_website_name_header'] ) ? sanitize_text_field( wp_unslash( $_POST['wp_livescore_la_website_name_header'] ) ) : 'worldcuppredictnet';
+	$kadario_url         = isset( $_POST['wp_livescore_la_kadario_url'] ) ? esc_url_raw( wp_unslash( $_POST['wp_livescore_la_kadario_url'] ) ) : '';
 	$kadario_api_key     = isset( $_POST['wp_livescore_la_kadario_api_key'] ) ? sanitize_text_field( wp_unslash( $_POST['wp_livescore_la_kadario_api_key'] ) ) : '';
+	$origin_domain       = isset( $_POST['wp_livescore_la_origin_domain'] ) ? esc_url_raw( wp_unslash( $_POST['wp_livescore_la_origin_domain'] ) ) : '';
 
 	update_option( 'wp_livescore_la_google_search_api_key', $api_key, false );
 	update_option( 'wp_livescore_la_google_search_cx', $cx, false );
 	update_option( 'wp_livescore_la_website_name_header', $website_name_header, false );
+	update_option( 'wp_livescore_la_kadario_url', $kadario_url, false );
 	update_option( 'wp_livescore_la_kadario_api_key', $kadario_api_key, false );
+	update_option( 'wp_livescore_la_origin_domain', $origin_domain, false );
 
 	wp_safe_redirect(
 		add_query_arg(

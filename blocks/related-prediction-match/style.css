@@ -2,17 +2,76 @@
 	box-sizing: border-box;
 }
 
-.wp-livescore-la-related-prediction-match__section-title {
-	font-weight: 700;
-	margin-bottom: 0.75rem;
-}
-
+/* Desktop Layout - Image Position: Top (default on mobile) */
 .wp-livescore-la-related-prediction-match__card {
 	border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
 	border-radius: 6px;
 	display: grid;
 	gap: 0;
 	overflow: hidden;
+	grid-template-columns: 1fr;
+	grid-template-rows: auto 1fr;
+}
+
+/* Image Position: Left */
+.wp-livescore-la-related-prediction-match--image-left .wp-livescore-la-related-prediction-match__card {
+	grid-template-columns: var(--wp-livescore-la-related-prediction-match-image-width, 100%) 1fr;
+	grid-template-rows: 1fr;
+}
+
+.wp-livescore-la-related-prediction-match--image-left .wp-livescore-la-related-prediction-match__image-link {
+	grid-column: 1;
+	grid-row: 1;
+	min-height: 200px;
+}
+
+.wp-livescore-la-related-prediction-match--image-left .wp-livescore-la-related-prediction-match__content {
+	grid-column: 2;
+	grid-row: 1;
+}
+
+/* Image Position: Right */
+.wp-livescore-la-related-prediction-match--image-right .wp-livescore-la-related-prediction-match__card {
+	grid-template-columns: 1fr var(--wp-livescore-la-related-prediction-match-image-width, 100%);
+	grid-template-rows: 1fr;
+}
+
+.wp-livescore-la-related-prediction-match--image-right .wp-livescore-la-related-prediction-match__image-link {
+	grid-column: 2;
+	grid-row: 1;
+	min-height: 200px;
+}
+
+.wp-livescore-la-related-prediction-match--image-right .wp-livescore-la-related-prediction-match__content {
+	grid-column: 1;
+	grid-row: 1;
+}
+
+/* Mobile Responsive: Image at top on small screens */
+@media (max-width: 768px) {
+	.wp-livescore-la-related-prediction-match--image-left .wp-livescore-la-related-prediction-match__card,
+	.wp-livescore-la-related-prediction-match--image-right .wp-livescore-la-related-prediction-match__card {
+		grid-template-columns: 1fr;
+		grid-template-rows: auto 1fr;
+	}
+
+	.wp-livescore-la-related-prediction-match--image-left .wp-livescore-la-related-prediction-match__image-link,
+	.wp-livescore-la-related-prediction-match--image-right .wp-livescore-la-related-prediction-match__image-link {
+		grid-column: 1;
+		grid-row: 1;
+		min-height: auto;
+	}
+
+	.wp-livescore-la-related-prediction-match--image-left .wp-livescore-la-related-prediction-match__content,
+	.wp-livescore-la-related-prediction-match--image-right .wp-livescore-la-related-prediction-match__content {
+		grid-column: 1;
+		grid-row: 2;
+	}
+}
+
+.wp-livescore-la-related-prediction-match__section-title {
+	font-weight: 700;
+	margin-bottom: 0.75rem;
 }
 
 .wp-livescore-la-related-prediction-match__image-link {

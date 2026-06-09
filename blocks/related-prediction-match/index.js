@@ -3,6 +3,7 @@
 	const InspectorControls = blockEditor.InspectorControls;
 	const useBlockProps = blockEditor.useBlockProps;
 	const PanelBody = components.PanelBody;
+	const RangeControl = components.RangeControl;
 	const SelectControl = components.SelectControl;
 	const TextControl = components.TextControl;
 	const ToggleControl = components.ToggleControl;
@@ -51,6 +52,24 @@
 							label: __( 'Show image', 'wp-livescore-la' ),
 							checked: !! attributes.showImage,
 							onChange: function ( value ) { setAttributes( { showImage: value } ); }
+						} ),
+						attributes.showImage && el( SelectControl, {
+							label: __( 'Image position', 'wp-livescore-la' ),
+							value: attributes.imagePosition || 'top',
+							options: [
+								{ label: __( 'Top', 'wp-livescore-la' ), value: 'top' },
+								{ label: __( 'Left', 'wp-livescore-la' ), value: 'left' },
+								{ label: __( 'Right', 'wp-livescore-la' ), value: 'right' }
+							],
+							onChange: function ( value ) { setAttributes( { imagePosition: value } ); }
+						} ),
+						attributes.showImage && el( RangeControl, {
+							label: __( 'Image width (% of container)', 'wp-livescore-la' ),
+							value: attributes.imageSize || 100,
+							min: 20,
+							max: 100,
+							step: 5,
+							onChange: function ( value ) { setAttributes( { imageSize: value } ); }
 						} ),
 						el( ToggleControl, {
 							label: __( 'Show excerpt', 'wp-livescore-la' ),
